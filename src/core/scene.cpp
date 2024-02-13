@@ -1,8 +1,9 @@
 #include "scene.h"
 #include "utils/base.h"
-#include "objects.h"
+#include "geometry/objects.h"
 
 #include <fstream>
+#include <memory>
 
 class Scene::SceneParser {
 public:
@@ -25,6 +26,11 @@ Scene::Scene(const std::string &filename) {
 }
 
 Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
+    vector2i cam_canvas{};
+    vector3f cam_position{};
+    vector3f cam_axes[3];
+    float    cam_fov_x;
+
     std::ifstream in(filename);
     if (!in)
         throw std::runtime_error("File open error");
@@ -46,27 +52,25 @@ Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
 
         if (cmd == "DIMENSIONS") {
             parse_stages |= ParseStage::DIMENSIONS;
-            vector2i dims = vec2i_from_string(line, space_pos + 1);
-            scene.width_ = dims.x;
-            scene.height_ = dims.y;
+            cam_canvas = vec2i_from_string(line, space_pos + 1);
         } else if (cmd == "BG_COLOR") {
             parse_stages |= ParseStage::BG_COLOR;
             scene.bg_color_ = vec3f_from_string(line, space_pos + 1);
         } else if (cmd == "CAMERA_POSITION") {
             parse_stages |= ParseStage::CAMERA_POSITION;
-            scene.camera_position_ = vec3f_from_string(line, space_pos + 1);
+            cam_position = vec3f_from_string(line, space_pos + 1);
         } else if (cmd == "CAMERA_RIGHT") {
             parse_stages |= ParseStage::CAMERA_RIGHT;
-            scene.camera_axes_[0] = normal(vec3f_from_string(line, space_pos + 1));
+            cam_axes[0] = normal(vec3f_from_string(line, space_pos + 1));
         } else if (cmd == "CAMERA_UP") {
             parse_stages |= ParseStage::CAMERA_UP;
-            scene.camera_axes_[1] = normal(vec3f_from_string(line, space_pos + 1));
+            cam_axes[1] = normal(vec3f_from_string(line, space_pos + 1));
         } else if (cmd == "CAMERA_FORWARD") {
             parse_stages |= ParseStage::CAMERA_FORWARD;
-            scene.camera_axes_[2] = normal(vec3f_from_string(line, space_pos + 1));
+            cam_axes[2] = normal(vec3f_from_string(line, space_pos + 1));
         } else if (cmd == "CAMERA_FOV_X") {
             parse_stages |= ParseStage::CAMERA_FOV_X;
-            scene.camera_fov_x_ = float_from_string(line, space_pos + 1);
+            cam_fov_x = float_from_string(line, space_pos + 1);
         } else if (cmd == "NEW_PRIMITIVE") {
             break;
         }
@@ -75,6 +79,7 @@ Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
     if (parse_stages != ParseStage::READY) {
         throw std::runtime_error("Wrong file format: " + filename);
     }
+    scene.camera_ = std::make_unique<Camera>(cam_canvas, cam_position, cam_axes, cam_fov_x);
 
     // primitive parameters
     while (std::getline(in, line)) {
@@ -88,8 +93,7 @@ Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
             vector3f n = normal(vec3f_from_string(line, space_pos + 1));
             scene.objects_.emplace_back(new Plane(n));
             scene.objects_.back()->parse(in);
-        }
-        else if (cmd == "ELLIPSOID") {
+        } else if (cmd == "ELLIPSOID") {
             vector3f radius = vec3f_from_string(line, space_pos + 1);
             scene.objects_.emplace_back(new Ellipsoid(radius));
             scene.objects_.back()->parse(in);

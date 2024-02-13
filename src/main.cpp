@@ -1,25 +1,24 @@
-#include "geometry/scene.h"
+#include "core/scene.h"
 #include <iostream>
 
-int parse_args(int argc, char* argv[], std::string &input, std::string &output) {
+void parse_args(int argc, char *argv[], std::string &input, std::string &output) {
     if (argc < 2 || argc > 3) {
-        std::cerr << "Invalid arguments - " << argc << " (expected: 2)" << std::endl;
-        return 1;
+        throw std::runtime_error("Invalid arguments - " + std::to_string(argc) + " (expected: 2)");
     }
+
     input = argv[1];
     output = "output.ppm";
     if (argc == 3)
         output = argv[2];
-    return 0;
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     std::string input;
     std::string output;
-    if (parse_args(argc, argv, input, output))
-        return 1;
+    parse_args(argc, argv, input, output);
 
-    Scene sceneScene(input);
+    Scene scene(input);
     std::cout << "Scene loaded." << std::endl;
+
     return 0;
 }

@@ -25,6 +25,16 @@ vector2i vec2i_from_string(const std::string &s, size_t pos) {
     return vec;
 }
 
+vector2f vec2f_from_string(const std::string &s, size_t pos) {
+    vector2f vec{};
+    for (int i = 0; i < 2; ++i) {
+        size_t new_pos;
+        vec[i] = float_from_string(s, pos, &new_pos);
+        pos += new_pos + 1;
+    }
+    return vec;
+}
+
 vector3f vec3f_from_string(const std::string &s, size_t pos) {
     vector3f vec{};
     for (int i = 0; i < 3; ++i) {
@@ -46,6 +56,16 @@ vector4f vec4f_from_string(const std::string &s, size_t pos) {
     return vec;
 }
 
+vector2f normal(vector2f v) {
+    float mod = 0.f;
+    for (int i = 0; i < 2; ++i) {
+        mod += v[i] * v[i];
+    }
+
+    mod = 1.f / mod;
+    return {v.x * mod, v.y * mod};
+}
+
 vector3f normal(vector3f v) {
     float mod = 0.f;
     for (int i = 0; i < 3; ++i) {
@@ -64,6 +84,18 @@ vector4f normal(vector4f v) {
 
     mod = 1.f / mod;
     return {v.x * mod, v.y * mod, v.z * mod, v.w * mod};
+}
+
+void normal(vector2f &v) {
+    float mod = 0.f;
+    for (int i = 0; i < 2; ++i) {
+        mod += v[i] * v[i];
+    }
+
+    mod = 1.f / mod;
+    for (int i = 0; i < 2; ++i) {
+        v[i] *= mod;
+    }
 }
 
 void normal(vector3f &v) {
