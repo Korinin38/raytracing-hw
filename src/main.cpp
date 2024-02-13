@@ -1,3 +1,4 @@
+#include "geometry/scene.h"
 #include <iostream>
 
 int parse_args(int argc, char* argv[], std::string &input, std::string &output) {
@@ -18,8 +19,7 @@ int main(int argc, char* argv[]) {
     if (parse_args(argc, argv, input, output))
         return 1;
 
-    std::cout << "Hello, World!" << std::endl;
-    std::cout << "arg1: " << input << std::endl;
-    std::cout << "arg2: " << output << (argc == 2 ? "(default)" : "") << std::endl;
+    Scene sceneScene(input);
+    std::cout << "Scene loaded." << std::endl;
     return 0;
 }

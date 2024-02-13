@@ -3,4 +3,17 @@ project(solution)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(solution src/main.cpp)
+include_directories(${CMAKE_SOURCE_DIR}/src)
+
+add_executable(solution
+        src/main.cpp
+        src/geometry/scene.h
+        src/geometry/scene.cpp
+        src/utils/base.h
+        src/geometry/primitive.h
+        src/utils/base.cpp
+        src/geometry/plane.h
+        src/geometry/objects.h
+        src/geometry/ellipsoid.h
+        src/geometry/box.h
+        src/geometry/primitive.cpp)
