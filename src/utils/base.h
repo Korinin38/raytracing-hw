@@ -87,6 +87,10 @@ vector3f operator*(vector3f v, float t);
 vector3f operator*(float t, vector3f v);
 vector3f operator/(vector3f a, vector3f b);
 
+vector3f operator-(vector3f v);
+// conjugate
 vector4f operator*(vector4f q);
 
 vector3f rotate(vector3f v, vector4f q);
+
+vector3f rotate(vector3f v, vector3f axis, float angle);

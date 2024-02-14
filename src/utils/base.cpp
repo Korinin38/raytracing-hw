@@ -177,6 +177,10 @@ vector3f operator/(vector3f a, vector3f b) {
     return result;
 }
 
+vector3f operator-(vector3f v) {
+    return {-v.x, -v.y, -v.z};
+}
+
 vector4f operator*(vector4f q) {
     return {-q.x, -q.y, -q.z, q.w};
 }
@@ -203,4 +207,10 @@ vector3f rotate(vector3f v, vector4f q) {
     return 2.f * dot(u, v) * u
          + (s * s - dot(u, u)) * v
          + 2.f * s * cross(u, v);
+}
+
+vector3f rotate(vector3f v, vector3f axis, float angle) {
+    float sin = std::sin(angle) / 2;
+    axis = axis * sin;
+    return rotate(v, {axis.x, axis.y, axis.z, std::cos(angle / 2)});
 }

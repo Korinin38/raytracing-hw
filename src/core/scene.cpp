@@ -76,8 +76,6 @@ Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
         else
             cmd = line.substr(0, space_pos);
 
-//         = line.substr(0, space_pos);
-
         if (cmd == "DIMENSIONS") {
             parse_stages |= ParseStage::DIMENSIONS;
             cam_canvas = vec2i_from_string(line, space_pos + 1);

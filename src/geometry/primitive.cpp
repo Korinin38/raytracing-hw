@@ -34,7 +34,8 @@ void Primitive::translateRay(Ray &ray) const {
     for (int i = 0; i < 3; ++i)
         ray.position[i] -= position_[i];
 
-//    ray.direction = rotate(ray.direction, rotation_);
+    ray.position = rotate(ray.position, *rotation_);
+    ray.direction = rotate(ray.direction, *rotation_);
 }
 
 Ray::Ray(vector3f p, vector3f d) : position(p), direction(d) {
