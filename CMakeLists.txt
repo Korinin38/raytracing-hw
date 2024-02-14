@@ -18,4 +18,6 @@ add_executable(solution
         src/geometry/box.h
         src/geometry/primitive.cpp
         src/core/camera.cpp
-        src/core/camera.h)
+        src/core/camera.h
+        src/render/canvas.cpp
+        src/render/canvas.h)

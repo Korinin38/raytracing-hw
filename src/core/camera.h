@@ -1,6 +1,8 @@
 #pragma once
 
 #include "utils/base.h"
+#include "render/canvas.h"
+#include "geometry/primitive.h"
 
 #include <memory>
 
@@ -12,8 +14,27 @@ class Camera {
 public:
     Camera(vector2i size, vector3f position, vector3f axes[3], float fov_x);
 
-    // pixel-wise dimensions
-    vector2i canvas_size_{};
+    Canvas canvas_;
+
+    vector2i get_canvas_size() const;
+
+    vector3f get_position() const;
+    vector3f set_position(vector3f position);
+
+    vector3f get_axis(int dim) const;
+    vector3f get_axis_right() const;
+    vector3f get_axis_up() const;
+    vector3f get_axis_forward() const;
+
+    vector2f get_fov() const;
+
+    // todo
+//    vector2i project(vector3f point);
+
+    // NB: casts into a center of a pixel
+    Ray cast_in_pixel(vector2i p);
+
+private:
     vector3f position_{};
 
     // 0 - right

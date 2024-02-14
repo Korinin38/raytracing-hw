@@ -3,11 +3,13 @@
 #include "utils/base.h"
 
 #include <fstream>
+#include <optional>
 #include <memory>
 
 class Primitive;
+class Ray;
 
-typedef std::unique_ptr<Primitive> primitive_uniq_ptr;
+typedef std::shared_ptr<Primitive> primitive_sh_ptr;
 
 class Primitive {
 public:
@@ -17,6 +19,11 @@ public:
     vector3f color_ = {};
 
     virtual void parse(std::ifstream &in);
+    [[nodiscard]] virtual std::optional<float> intersects(Ray ray) const = 0;
+
+protected:
+    // shift and rotate Ray to make itself behave like axis-aligned, in origin
+    void translateRay(Ray &ray) const;
 
 private:
     enum ParseStage {
@@ -27,8 +34,9 @@ private:
 
 class Ray {
 public:
+    Ray(vector3f p, vector3f d);
     // start position
-    vector3f p;
+    vector3f position;
     // direction
-    vector3f d;
+    vector3f direction;
 };

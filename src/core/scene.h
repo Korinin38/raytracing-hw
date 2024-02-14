@@ -11,9 +11,12 @@ class Scene {
 public:
     Scene(const std::string &filename);
 
+    void render();
+    void draw_into(const std::string &filename) const;
+
     camera_uniq_ptr camera_;
     vector3f bg_color_;
-    std::vector<primitive_uniq_ptr> objects_;
+    std::vector<primitive_sh_ptr> objects_;
 private:
     class SceneParser;
 };

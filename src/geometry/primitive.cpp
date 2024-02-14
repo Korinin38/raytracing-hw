@@ -29,3 +29,14 @@ void Primitive::parse(std::ifstream &in) {
         throw std::runtime_error("Invalid primitive structure: required values missing");
     }
 }
+
+void Primitive::translateRay(Ray &ray) const {
+    for (int i = 0; i < 3; ++i)
+        ray.position[i] -= position_[i];
+
+//    ray.direction = rotate(ray.direction, rotation_);
+}
+
+Ray::Ray(vector3f p, vector3f d) : position(p), direction(d) {
+    normalize(direction);
+}

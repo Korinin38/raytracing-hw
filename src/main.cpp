@@ -20,5 +20,9 @@ int main(int argc, char *argv[]) {
     Scene scene(input);
     std::cout << "Scene loaded." << std::endl;
 
+    scene.render();
+    std::cout << "Frame rendered." << std::endl;
+
+    scene.draw_into(output);
     return 0;
 }

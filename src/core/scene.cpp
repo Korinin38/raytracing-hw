@@ -25,6 +25,34 @@ Scene::Scene(const std::string &filename) {
     (SceneParser(*this, filename));
 }
 
+void Scene::render() {
+    for (int j = 0; j < camera_->canvas_.height(); ++j) {
+        for (int i = 0; i < camera_->canvas_.width(); ++i) {
+            vector2i pix_pos{i, j};
+            Ray r = camera_->cast_in_pixel(pix_pos);
+
+            vector3f color = bg_color_;
+            float distance = 1e9;
+
+            for (const auto& o : objects_) {
+                auto intersection = o->intersects(r);
+                if (intersection) {
+                    if (intersection.value() < distance) {
+                        distance = intersection.value();
+                        color = o->color_;
+                    }
+                }
+            }
+
+            camera_->canvas_.set(pix_pos, normal_to_ch8bit(color));
+        }
+    }
+}
+
+void Scene::draw_into(const std::string &filename) const {
+    camera_->canvas_.write_to(filename);
+}
+
 Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
     vector2i cam_canvas{};
     vector3f cam_position{};
@@ -97,8 +125,7 @@ Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
             vector3f radius = vec3f_from_string(line, space_pos + 1);
             scene.objects_.emplace_back(new Ellipsoid(radius));
             scene.objects_.back()->parse(in);
-        }
-        if (cmd == "PLANE") {
+        } else if (cmd == "BOX") {
             vector3f sizes = vec3f_from_string(line, space_pos + 1);
             scene.objects_.emplace_back(new Box(sizes));
             scene.objects_.back()->parse(in);
