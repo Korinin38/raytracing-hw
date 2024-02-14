@@ -2,13 +2,14 @@
 
 #include <cmath>
 
-//Camera::Camera()
 Camera::Camera(vector2i size, vector3f position, vector3f *axes, float fov_x)
         : canvas_(size),
           position_(position),
-          axes_{axes[0], axes[1], axes[2]},
-          fov_{fov_x, fov_x / (float)size.x * (float)size.y}
-          {}
+          axes_{axes[0], axes[1], axes[2]} {
+    fov_.x = fov_x;
+    float ratio_inv =  (float)size.y / (float)size.x;
+    fov_.y = 2.f * std::atan(std::tan(fov_.x * 0.5f) * ratio_inv);
+}
 
 vector2i Camera::get_canvas_size() const {
     return canvas_.size();
