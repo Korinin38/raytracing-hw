@@ -135,7 +135,7 @@ void normalize(vector4f &v) {
 }
 
 uint8_t normal_to_ch8bit(float val) {
-    return std::floor(val * 255);
+    return std::round(val * 255);
 }
 
 vector3si normal_to_ch8bit(vector3f val) {
