@@ -20,4 +20,7 @@ add_executable(solution
         src/core/camera.cpp
         src/core/camera.h
         src/render/canvas.cpp
-        src/render/canvas.h)
+        src/render/canvas.h
+        src/geometry/light_source.cpp
+        src/geometry/light_source.h
+        src/utils/timer.h)

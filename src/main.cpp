@@ -1,4 +1,6 @@
 #include "core/scene.h"
+#include "utils/timer.h"
+
 #include <iostream>
 
 void parse_args(int argc, char *argv[], std::string &input, std::string &output) {
@@ -17,11 +19,13 @@ int main(int argc, char *argv[]) {
     std::string output;
     parse_args(argc, argv, input, output);
 
+    timer t;
     Scene scene(input);
-    std::cout << "Scene loaded." << std::endl;
+    std::cout << "Scene loaded (" << t.elapsed() << " seconds)." << std::endl;
 
+    t.restart();
     scene.render();
-    std::cout << "Frame rendered." << std::endl;
+    std::cout << "Frame rendered (" << t.elapsed() << " seconds)." << std::endl;
 
     scene.draw_into(output);
     return 0;

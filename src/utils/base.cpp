@@ -135,7 +135,7 @@ void normalize(vector4f &v) {
 }
 
 uint8_t normal_to_ch8bit(float val) {
-    return std::round(val * 255);
+    return (uint8_t)std::round(clamp(val * 255, 0.f, 255.f));
 }
 
 vector3si normal_to_ch8bit(vector3f val) {
@@ -170,11 +170,22 @@ vector3f operator*(float t, vector3f v) {
     return v * t;
 }
 
+vector3f operator*(vector3f a, vector3f b) {
+    vector3f result{};
+    for (int i = 0; i < 3; ++i)
+        result[i] = a[i] * b[i];
+    return result;
+}
+
 vector3f operator/(vector3f a, vector3f b) {
     vector3f result{};
     for (int i = 0; i < 3; ++i)
         result[i] = a[i] / b[i];
     return result;
+}
+
+vector3f pow(vector3f v, float power) {
+    return {std::pow(v.x, power), std::pow(v.y, power), std::pow(v.z, power)};
 }
 
 vector3f operator-(vector3f v) {
@@ -213,4 +224,35 @@ vector3f rotate(vector3f v, vector3f axis, float angle) {
     float sin = std::sin(angle) / 2;
     axis = axis * sin;
     return rotate(v, {axis.x, axis.y, axis.z, std::cos(angle / 2)});
+}
+
+vector3f operator+(vector3f a, float t) {
+    return {a.x + t, a.y + t, a.z + t};
+}
+
+template<class T>
+T clamp(T v, T min, T max) {
+    return std::max(std::min(v, max), min);
+}
+
+template<>
+vector3f clamp<vector3f> (vector3f v, vector3f min, vector3f max) {
+    vector3f res{};
+    for (int i = 0; i < 3; ++i) {
+        res[i] = clamp(v[i], min[i], max[i]);
+    }
+    return res;
+}
+
+vector3f saturate(const vector3f &color) {
+    return clamp(color, {0.f, 0.f, 0.f}, {1.f, 1.f, 1.f});
+}
+
+vector3f aces_tonemap(const vector3f &x) {
+    const float a = 2.51f;
+    const float b = 0.03f;
+    const float c = 2.43f;
+    const float d = 0.59f;
+    const float e = 0.14f;
+    return saturate((x*(a*x+b))/(x*(c*x+d)+e));
 }

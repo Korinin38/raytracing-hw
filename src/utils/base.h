@@ -82,10 +82,14 @@ vector3f ch8bit_to_normal(vector3si val);
 float dot(vector3f a, vector3f b);
 vector3f cross(vector3f a, vector3f b);
 
+vector3f operator+(vector3f a, float t);
 vector3f operator+(vector3f a, vector3f b);
 vector3f operator*(vector3f v, float t);
 vector3f operator*(float t, vector3f v);
+vector3f operator*(vector3f a, vector3f b);
 vector3f operator/(vector3f a, vector3f b);
+
+vector3f pow(vector3f v, float power);
 
 vector3f operator-(vector3f v);
 // conjugate
@@ -94,3 +98,9 @@ vector4f operator*(vector4f q);
 vector3f rotate(vector3f v, vector4f q);
 
 vector3f rotate(vector3f v, vector3f axis, float angle);
+
+template<class T>
+T clamp(T v, T min, T max);
+
+vector3f saturate(vector3f const & color);
+vector3f aces_tonemap(vector3f const & x);
