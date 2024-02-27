@@ -1,6 +1,7 @@
 #include "scene.h"
 #include "utils/base.h"
 
+#include <iostream>
 #include <fstream>
 #include <sstream>
 #include <memory>
@@ -51,7 +52,11 @@ void Scene::render() {
         for (int i = 0; i < camera_->canvas_.width(); ++i) {
             vector2i pix_pos{i, j};
             Ray r = camera_->cast_in_pixel(pix_pos);
-
+//
+//            if (i == 1430 && j == 560)
+//            {
+//                int a = 1;
+//            }
             vector3f color = bg_color_;
             float distance = 1e9;
 
@@ -60,6 +65,7 @@ void Scene::render() {
                 if (intersection) {
                     if (intersection.value().distance < distance) {
                         distance = intersection.value().distance;
+//                        color = intersection.value().normal;
                         color = o->color_;
                     }
                 }
@@ -95,14 +101,19 @@ Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
 
         std::string cmd;
         ss >> cmd;
+        if (cmd.empty())
+            continue;
 
         ParseStage stage = get_parse_stage(cmd);
         parse_stages |= stage;
         switch (stage) {
             case UNKNOWN:
-                if (!scene.objects_.empty() && !scene.objects_.back()->parse(line) ||
-                    !scene.light_.empty() && !scene.light_.back()->parse(line))
+                if (!scene.objects_.empty() && scene.objects_.back()->parse(line))
                     break;
+                if (!scene.light_.empty() && scene.light_.back()->parse(line))
+                    break;
+
+                std::cout << "Warning: unknown command: " << cmd << std::endl;
                 break;
             case DIMENSIONS:
                 parse_stages |= DIMENSIONS;
@@ -140,8 +151,12 @@ Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
                 break;
             case NEW_PRIMITIVE:
                 scene.objects_.emplace_back(new Primitive());
+                break;
             case NEW_LIGHT:
-                scene.light_.emplace_back(new Primitive());
+                scene.light_.emplace_back(new LightSource());
+                break;
+            case READY:
+                break;
         }
     }
     if (parse_stages != ParseStage::READY) {
@@ -149,4 +164,3 @@ Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
     }
     scene.camera_ = std::make_unique<Camera>(cam_canvas, cam_position, cam_axes, cam_fov_x);
 }
-

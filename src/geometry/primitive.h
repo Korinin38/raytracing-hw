@@ -15,26 +15,34 @@ typedef struct {
     float distance;
     vector3f normal;
     bool inside;
-} intersection;
+} Intersection;
 
 class Primitive {
 public:
-    enum Type {
+    enum GeomType {
         Box,
         Ellipsoid,
         Plane
     };
 
-    Type     type_;
-    vector3f param_;
-    vector3f position_ = {0, 0, 0};
-    vector4f rotation_ = {0, 0, 0, 1};
+    enum Material {
+        Diffuse,
+        Dielectric,
+        Metallic
+    };
+
+    GeomType type_ = Plane;
+    Material material_ = Diffuse;
+    float ior_ = 1.0;
+    vector3f param_ = {};
+    vector3f position_ = {};
+    vector4f rotation_ = {0, 0, 0,1};
 
     vector3f color_ = {0, 0, 0};
 
     Primitive() = default;
     bool parse(const std::string& line);
-    [[nodiscard]] std::optional<intersection> intersect(Ray ray) const;
+    [[nodiscard]] std::optional<Intersection> intersect(Ray ray) const;
 
 protected:
     // shift and rotate Ray to make itself behave like axis-aligned, in origin

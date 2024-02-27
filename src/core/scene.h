@@ -1,6 +1,7 @@
 #pragma once
 
 #include "geometry/primitive.h"
+#include "geometry/light_source.h"
 #include "core/camera.h"
 #include "utils/base.h"
 
@@ -19,7 +20,7 @@ public:
     int ray_depth_ = 1;
     vector3f ambient_{0.f, 0.f, 0.f};
     std::vector<primitive_sh_ptr> objects_;
-    std::vector<primitive_sh_ptr> light_;
+    std::vector<light_source_sh_ptr> light_;
 private:
     const float gamma = 1.f / 2.2f;
     class SceneParser;

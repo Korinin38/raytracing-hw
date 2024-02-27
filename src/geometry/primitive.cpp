@@ -47,7 +47,7 @@ Ray::Ray(vector3f p, vector3f d) : position(p), direction(d) {
     normalize(direction);
 }
 
-std::optional<intersection> Primitive::intersect(Ray ray) const {
+std::optional<Intersection> Primitive::intersect(Ray ray) const {
     translateRay(ray);
 
     switch (type_) {
@@ -67,39 +67,57 @@ std::optional<intersection> Primitive::intersect(Ray ray) const {
             if (t1_max > t2_min || t2_min < 0)
                 return {};
 
-            intersection i;
-
+            Intersection intersection;
+            intersection.distance = t1_max;
             if (t1_max < 0) {
-                i.inside = true;
-                i.distance = t2_min;
-                // todo: normal
+                intersection.inside = true;
+                intersection.distance = t2_min;
             }
 
-            return std::make_optional(i);
+            // find normal direction
+            {
+                vector3f intersection_point = ray.position + intersection.distance * ray.direction;
+                intersection.normal = intersection_point / size_;
+
+                float max_dist = 0.f;
+                int max_idx = 0;
+                for (int i = 0; i < 3; ++i) {
+                    if (std::abs(intersection.normal[i]) >= max_dist) {
+                        max_dist = std::abs(intersection.normal[i]);
+                        max_idx = i;
+                    }
+                }
+                for (int i = 0; i < 3; ++i) {
+                    intersection.normal[i] = (i == max_idx) ? 1.f : 0.f;
+                }
+
+                intersection.normal = rotate(intersection.normal, rotation_);
+            }
+            return std::make_optional(intersection);
         }
         case Plane: {
             const vector3f &normal_ = param_;
 
             float t = -dot(ray.position, normal_) / dot(ray.direction, normal_);
-            intersection i;
+            Intersection intersection;
 
             if (t < 0.f)
                 return {};
 
-            i.normal = normal_;
-            i.distance = std::abs(t);
+            intersection.normal = normal_;
+            intersection.distance = std::abs(t);
 
-            return std::make_optional(i);
+            return std::make_optional(intersection);
         }
         case Ellipsoid: {
             const vector3f &radius_ = param_;
 
             float a, b, c;
-            vector3f o_div_r = ray.position / radius_;
-            vector3f d_div_r = ray.direction / radius_;
-            a = dot(d_div_r, d_div_r);
-            b = dot(o_div_r, d_div_r);
-            c = dot(o_div_r, o_div_r);
+            vector3f o_r = ray.position / radius_;
+            vector3f d_r = ray.direction / radius_;
+            a = dot(d_r, d_r);
+            b = dot(o_r, d_r);
+            c = dot(o_r, o_r);
 
             float h = b * b - a * (c - 1.f);
             if (h < 0.f)
@@ -111,14 +129,19 @@ std::optional<intersection> Primitive::intersect(Ray ray) const {
 
             if (t2 < 0)
                 return {};
-            intersection i;
+            Intersection intersection;
+
+            intersection.distance = t1;
 
             if (t1 < 0) {
-                i.inside = true;
-                i.distance = t2;
-                // todo: normal
+                intersection.inside = true;
+                intersection.distance = t2;
             }
-            return std::make_optional(i);
+
+            vector3f intersection_point = ray.position + intersection.distance * ray.direction;
+            intersection.normal = intersection_point / radius_;
+
+            return std::make_optional(intersection);
         }
     }
 }
