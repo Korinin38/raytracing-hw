@@ -36,6 +36,10 @@ struct vector3f {
 
     float &operator[](int i) { return *(&x + i); }
     const float &operator[](int i) const { return *(&x + i); }
+
+    vector3f &operator+=(vector3f b);
+    vector3f &operator*=(vector3f b);
+    vector3f &operator*=(float b);
 };
 
 struct vector4f {

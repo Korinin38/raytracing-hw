@@ -158,8 +158,28 @@ vector3f ch8bit_to_normal(vector3si val) {
     return result;
 }
 
+vector3f &vector3f::operator+=(vector3f b) {
+    for (int i = 0; i < 3; ++i)
+        (*this)[i] += b[i];
+    return *this;
+}
+
 vector3f operator+(vector3f a, vector3f b) {
-    return {a.x + b.x, a.y + b.y, a.z + b.z};
+    vector3f r = a;
+    r += b;
+    return r;
+}
+
+vector3f &vector3f::operator*=(vector3f b) {
+    for (int i = 0; i < 3; ++i)
+        (*this)[i] *= b[i];
+    return *this;
+}
+
+vector3f &vector3f::operator*=(float b) {
+    for (int i = 0; i < 3; ++i)
+        (*this)[i] *= b;
+    return *this;
 }
 
 vector3f operator-(vector3f a, vector3f b) {
@@ -167,7 +187,9 @@ vector3f operator-(vector3f a, vector3f b) {
 }
 
 vector3f operator*(vector3f v, float t) {
-    return {v.x * t, v.y * t, v.z * t};
+    vector3f r = v;
+    r *= t;
+    return r;
 }
 
 vector3f operator*(float t, vector3f v) {
@@ -175,10 +197,9 @@ vector3f operator*(float t, vector3f v) {
 }
 
 vector3f operator*(vector3f a, vector3f b) {
-    vector3f result{};
-    for (int i = 0; i < 3; ++i)
-        result[i] = a[i] * b[i];
-    return result;
+    vector3f r = a;
+    r *= b;
+    return r;
 }
 
 vector3f operator/(vector3f a, vector3f b) {

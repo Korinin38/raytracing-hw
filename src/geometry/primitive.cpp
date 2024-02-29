@@ -155,7 +155,6 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
             intersection.normal = normal(intersection_point);
             if (intersection.inside)
                 intersection.normal = -intersection.normal;
-//            intersection.normal = intersection_point / radius_;
 
             return std::make_optional(intersection);
         }
