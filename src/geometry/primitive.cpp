@@ -31,6 +31,15 @@ bool Primitive::parse(const std::string& line) {
     } else if (cmd == "COLOR") {
         color_ = vec3f_from_string(line, cmd.length() + 1);
         return true;
+    } else if (cmd == "METALLIC") {
+        material_ = Metallic;
+        return true;
+    } else if (cmd == "DIELECTRIC") {
+        material_ = Dielectric;
+        return true;
+    } else if (cmd == "IOR") {
+        ior_ = float_from_string(line, cmd.length() + 1);
+        return true;
     }
     return false;
 }
@@ -69,6 +78,7 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
 
             Intersection intersection;
             intersection.distance = t1_max;
+            intersection.color = color_;
             if (t1_max < 0) {
                 intersection.inside = true;
                 intersection.distance = t2_min;
@@ -88,7 +98,7 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
                     }
                 }
                 for (int i = 0; i < 3; ++i) {
-                    intersection.normal[i] = (i == max_idx) ? 1.f : 0.f;
+                    intersection.normal[i] = (i == max_idx) ? (intersection.normal[i] > 0.f ? 1.f : -1.f) : 0.f;
                 }
 
                 intersection.normal = rotate(intersection.normal, rotation_);
@@ -99,11 +109,13 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
             const vector3f &normal_ = param_;
 
             float t = -dot(ray.position, normal_) / dot(ray.direction, normal_);
-            Intersection intersection;
 
             if (t < 0.f)
                 return {};
 
+            Intersection intersection;
+
+            intersection.color = color_;
             intersection.normal = normal_;
             intersection.distance = std::abs(t);
 
@@ -129,8 +141,9 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
 
             if (t2 < 0)
                 return {};
-            Intersection intersection;
 
+            Intersection intersection;
+            intersection.color = color_;
             intersection.distance = t1;
 
             if (t1 < 0) {
@@ -139,7 +152,10 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
             }
 
             vector3f intersection_point = ray.position + intersection.distance * ray.direction;
-            intersection.normal = intersection_point / radius_;
+            intersection.normal = normal(intersection_point);
+            if (intersection.inside)
+                intersection.normal = -intersection.normal;
+//            intersection.normal = intersection_point / radius_;
 
             return std::make_optional(intersection);
         }

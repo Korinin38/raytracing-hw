@@ -68,42 +68,50 @@ vector4f vec4f_from_string(const std::string &s, size_t pos) {
     return vec;
 }
 
-vector2f normal(vector2f v) {
+float length(vector2f v) {
     float mod = 0.f;
     for (int i = 0; i < 2; ++i) {
         mod += v[i] * v[i];
     }
+    return std::sqrt(mod);
+}
 
+float length(vector3f v) {
+    float mod = 0.f;
+    for (int i = 0; i < 3; ++i) {
+        mod += v[i] * v[i];
+    }
+    return std::sqrt(mod);
+}
+
+float length(vector4f v) {
+    float mod = 0.f;
+    for (int i = 0; i < 4; ++i) {
+        mod += v[i] * v[i];
+    }
+    return std::sqrt(mod);
+}
+
+vector2f normal(vector2f v) {
+    float mod = length(v);
     mod = 1.f / mod;
     return {v.x * mod, v.y * mod};
 }
 
 vector3f normal(vector3f v) {
-    float mod = 0.f;
-    for (int i = 0; i < 3; ++i) {
-        mod += v[i] * v[i];
-    }
-
+    float mod = length(v);
     mod = 1.f / mod;
     return {v.x * mod, v.y * mod, v.z * mod};
 }
 
 vector4f normal(vector4f v) {
-    float mod = 0.f;
-    for (int i = 0; i < 4; ++i) {
-        mod += v[i] * v[i];
-    }
-
+    float mod = length(v);
     mod = 1.f / mod;
     return {v.x * mod, v.y * mod, v.z * mod, v.w * mod};
 }
 
 void normalize(vector2f &v) {
-    float mod = 0.f;
-    for (int i = 0; i < 2; ++i) {
-        mod += v[i] * v[i];
-    }
-
+    float mod = length(v);
     mod = 1.f / mod;
     for (int i = 0; i < 2; ++i) {
         v[i] *= mod;
@@ -111,11 +119,7 @@ void normalize(vector2f &v) {
 }
 
 void normalize(vector3f &v) {
-    float mod = 0.f;
-    for (int i = 0; i < 3; ++i) {
-        mod += v[i] * v[i];
-    }
-
+    float mod = length(v);
     mod = 1.f / mod;
     for (int i = 0; i < 3; ++i) {
         v[i] *= mod;
@@ -123,11 +127,7 @@ void normalize(vector3f &v) {
 }
 
 void normalize(vector4f &v) {
-    float mod = 0.f;
-    for (int i = 0; i < 4; ++i) {
-        mod += v[i] * v[i];
-    }
-
+    float mod = length(v);
     mod = 1.f / mod;
     for (int i = 0; i < 4; ++i) {
         v[i] *= mod;
@@ -160,6 +160,10 @@ vector3f ch8bit_to_normal(vector3si val) {
 
 vector3f operator+(vector3f a, vector3f b) {
     return {a.x + b.x, a.y + b.y, a.z + b.z};
+}
+
+vector3f operator-(vector3f a, vector3f b) {
+    return a + (-b);
 }
 
 vector3f operator*(vector3f v, float t) {

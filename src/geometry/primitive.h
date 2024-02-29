@@ -14,7 +14,8 @@ typedef std::shared_ptr<Primitive> primitive_sh_ptr;
 typedef struct {
     float distance;
     vector3f normal;
-    bool inside;
+    vector3f color;
+    bool inside = false;
 } Intersection;
 
 class Primitive {
@@ -54,4 +55,7 @@ public:
     Ray(vector3f p, vector3f d);
     vector3f position;
     vector3f direction;
+
+    // amount of jumps possible
+    int power = 1;
 };

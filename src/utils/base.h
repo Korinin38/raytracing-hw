@@ -63,6 +63,10 @@ extern vector3f vec3f_from_string(const std::string &s, size_t pos = 0);
 // extracts floats from string of format "X.XXX Y.YYY Z.ZZZ W.WWW"
 extern vector4f vec4f_from_string(const std::string &s, size_t pos = 0);
 
+float length(vector2f v);
+float length(vector3f v);
+float length(vector4f v);
+
 [[nodiscard]] vector2f normal(vector2f v);
 [[nodiscard]] vector3f normal(vector3f v);
 [[nodiscard]] vector4f normal(vector4f v);
@@ -84,6 +88,7 @@ vector3f cross(vector3f a, vector3f b);
 
 vector3f operator+(vector3f a, float t);
 vector3f operator+(vector3f a, vector3f b);
+vector3f operator-(vector3f a, vector3f b);
 vector3f operator*(vector3f v, float t);
 vector3f operator*(float t, vector3f v);
 vector3f operator*(vector3f a, vector3f b);

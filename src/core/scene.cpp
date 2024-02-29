@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <memory>
+#include <cmath>
 
 class Scene::SceneParser {
 public:
@@ -48,29 +49,24 @@ Scene::Scene(const std::string &filename) {
 }
 
 void Scene::render() {
+    #pragma omp parallel for collapse(2)
     for (int j = 0; j < camera_->canvas_.height(); ++j) {
         for (int i = 0; i < camera_->canvas_.width(); ++i) {
             vector2i pix_pos{i, j};
             Ray r = camera_->cast_in_pixel(pix_pos);
+            r.power = ray_depth_;
 //
-//            if (i == 1430 && j == 560)
-//            {
-//                int a = 1;
-//            }
-            vector3f color = bg_color_;
-            float distance = 1e9;
-
-            for (const auto& o : objects_) {
-                auto intersection = o->intersect(r);
-                if (intersection) {
-                    if (intersection.value().distance < distance) {
-                        distance = intersection.value().distance;
-//                        color = intersection.value().normal;
-                        color = o->color_;
-                    }
-                }
+            if (i == 444 && j == 360)
+            {
+                int a = 1;
             }
-            color = color + ambient_;
+            vector3f color = bg_color_;
+
+            auto intersection = intersect(r);
+            if (intersection) {
+//                        color = intersection.value().normal;
+                color = intersection->color;
+            }
             color = aces_tonemap(color);
             color = pow(color, gamma);
             camera_->canvas_.set(pix_pos, normal_to_ch8bit(color));
@@ -80,6 +76,151 @@ void Scene::render() {
 
 void Scene::draw_into(const std::string &filename) const {
     camera_->canvas_.write_to(filename);
+}
+
+std::optional<Intersection> Scene::intersect(Ray r, float max_distance) const {
+    if (r.power < 0)
+        return {};
+    r.power -= 1;
+    Intersection intersection;
+    intersection.distance = max_distance;
+    intersection.color = {0.f};
+    intersection.inside = false;
+
+    bool intersection_happened = false;
+    for (const auto& o : objects_) {
+        auto intersect_obj = o->intersect(r);
+        if (!intersect_obj) continue;
+
+        if (intersect_obj->distance > intersection.distance) {
+            continue;
+        }
+        intersection_happened = true;
+        intersection.inside = intersect_obj->inside;
+        intersection.distance = intersect_obj->distance;
+        intersection.normal = intersect_obj->normal;
+        intersection.color = o->color_ * ambient_;
+
+        vector3f pos = r.position + r.direction * intersect_obj->distance;
+
+        // weak ray does not need light check
+        bool light_check = (r.power >= 0);
+
+        switch(o->material_) {
+            case Primitive::Diffuse:
+                break;
+            case Primitive::Dielectric: {
+                float cos_in = -dot(intersect_obj->normal, r.direction);
+                float eta_1 = 1.f;
+                float eta_2 = o->ior_;
+                if (intersect_obj->inside)
+                    std::swap(eta_1, eta_2);
+                float refractive_index = eta_1 / eta_2;
+                float sin_out = refractive_index * std::sqrt(1 - cos_in * cos_in);
+
+                float reflection_coefficient;
+                if (sin_out >= 1.f) {
+                    reflection_coefficient = 0;
+                } else {
+                    float r0 = std::pow((eta_1 - eta_2) / (eta_1 + eta_2), 2.f);
+                    reflection_coefficient = r0 + (1 - r0) * std::pow(1 - cos_in, 5.f);
+                }
+
+                intersection.color = {};
+                // reflected
+                {
+                    vector3f dir = r.direction - 2 * intersect_obj->normal * dot(intersect_obj->normal, r.direction);
+                    normalize(dir);
+                    Ray reflect_ray(pos + dir * 1e-4, dir);
+                    reflect_ray.power = r.power;
+                    auto reflect_inter = intersect(reflect_ray, max_distance);
+                    if (!reflect_inter) {
+                        intersection.color = intersection.color + reflection_coefficient * bg_color_;
+                    } else {
+                        intersection.color = intersection.color + reflection_coefficient * reflect_inter->color;
+                    }
+                }
+                if (sin_out >= 1.f)
+                    continue;
+                // refracted
+                {
+                    // todo: still not ideal
+                    float cos_out = std::sqrt(1 - sin_out * sin_out);
+                    float coeff = eta_1 / eta_2;
+
+                    vector3f dir = coeff * r.direction + (coeff * cos_in - cos_out) * (intersect_obj->inside ? 1.f : -1.f) * intersect_obj->normal;
+                    normalize(dir);
+                    Ray reflect_ray(pos + dir * 1e-4, dir);
+                    reflect_ray.power = r.power;
+//                    reflect_ray.power = std::min(2, r.power);
+                    auto refract_inter = intersect(reflect_ray, max_distance);
+
+                    if (refract_inter) {
+                        if (refract_inter->inside)
+                            intersection.color = intersection.color +
+                                                 (1 - reflection_coefficient) * refract_inter->color * o->color_;
+                        else
+                            intersection.color =
+                                    intersection.color + (1 - reflection_coefficient) * refract_inter->color;
+                    } else {
+                        intersection.color = intersection.color + (1 - reflection_coefficient) * o->color_ * bg_color_;
+                    }
+                }
+                continue;
+//                break;
+                }
+            case Primitive::Metallic: {
+                vector3f dir = r.direction - 2 * intersect_obj->normal * dot(intersect_obj->normal, r.direction);
+                normalize(dir);
+                Ray reflect_ray(pos + dir * 1e-4, dir);
+                reflect_ray.power = r.power;
+                auto reflect_inter = intersect(reflect_ray, max_distance);
+                if (!reflect_inter) {
+                    intersection.color = intersection.color + o->color_ * bg_color_;
+                } else {
+                    intersection.color = intersection.color + o->color_ * reflect_inter->color;
+                }
+                continue;
+                break;
+            }
+        }
+
+        if (!light_check)
+            continue;
+
+        for (const auto& l : light_) {
+            vector3f dir{};
+            float light_distance = max_distance;
+
+            if (l->type_ == LightSource::Directional) {
+                dir = l->direction_;
+            } else {
+                dir = l->position_ - pos;
+                light_distance = length(dir);
+            }
+            normalize(dir);
+            Ray light_ray(pos + dir * 1e-4, dir);
+            light_ray.power = 0;
+
+            auto light_inter = intersect(light_ray, light_distance);
+//            auto light_inter = intersect(light_ray);
+            if (light_inter)
+                continue;
+            vector3f light_color = l->intensity_;
+            if (l->type_ == LightSource::Positional) {
+                light_color = light_color * (1.f / (l->attenuation_[0]
+                                                    + l->attenuation_[1] * light_distance
+                                                    + l->attenuation_[2] * light_distance * light_distance));
+            }
+
+            light_color = light_color * std::max(0.f, dot(dir, intersect_obj->normal));
+            intersection.color = intersection.color + o->color_ * light_color;
+        }
+    }
+    if (intersection_happened)
+        return std::make_optional(intersection);
+    else
+        return {};
 }
 
 Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {

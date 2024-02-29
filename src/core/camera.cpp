@@ -54,5 +54,6 @@ Ray Camera::cast_in_pixel(vector2i p) {
         d = d + t[i] * axes_[i];
     }
 
+
     return {position_, d};
 }

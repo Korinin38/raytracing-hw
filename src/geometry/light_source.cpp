@@ -11,12 +11,15 @@ bool LightSource::parse(const std::string &line) {
         intensity_ = vec3f_from_string(line, cmd.length() + 1);
         return true;
     } else if (cmd == "LIGHT_DIRECTION") {
+        type_ = Directional;
         direction_ = vec3f_from_string(line, cmd.length() + 1);
         return true;
     } else if (cmd == "LIGHT_POSITION") {
+        type_ = Positional;
         position_ = vec3f_from_string(line, cmd.length() + 1);
         return true;
     } else if (cmd == "LIGHT_ATTENUATION") {
+        type_ = Positional;
         attenuation_ = vec3f_from_string(line, cmd.length() + 1);
         return true;
     }
