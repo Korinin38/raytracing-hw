@@ -12,7 +12,7 @@ class Scene {
 public:
     Scene(const std::string &filename);
 
-    void render();
+    void render() const;
     void draw_into(const std::string &filename) const;
 
     camera_uniq_ptr camera_;

@@ -48,23 +48,17 @@ Scene::Scene(const std::string &filename) {
     (SceneParser(*this, filename));
 }
 
-void Scene::render() {
+void Scene::render() const {
     #pragma omp parallel for collapse(2)
     for (int j = 0; j < camera_->canvas_.height(); ++j) {
         for (int i = 0; i < camera_->canvas_.width(); ++i) {
             vector2i pix_pos{i, j};
             Ray r = camera_->cast_in_pixel(pix_pos);
             r.power = ray_depth_;
-//
-            if (i == 444 && j == 360)
-            {
-                int a = 1;
-            }
             vector3f color = bg_color_;
 
             auto intersection = intersect(r);
             if (intersection) {
-//                        color = intersection.value().normal;
                 color = intersection->color;
             }
             color = aces_tonemap(color);
@@ -148,23 +142,22 @@ std::optional<Intersection> Scene::intersect(Ray r, float max_distance) const {
                     float cos_out = std::sqrt(1 - sin_out * sin_out);
                     float coeff = eta_1 / eta_2;
 
-                    vector3f dir = coeff * r.direction + (coeff * cos_in - cos_out) * (intersect_obj->inside ? 1.f : -1.f) * intersect_obj->normal;
+                    vector3f dir = coeff * r.direction + (coeff * cos_in - cos_out) * intersect_obj->normal;
                     normalize(dir);
                     Ray reflect_ray(pos + dir * 1e-4, dir);
                     reflect_ray.power = r.power;
 //                    reflect_ray.power = std::min(2, r.power);
                     auto refract_inter = intersect(reflect_ray, max_distance);
 
+                    vector3f refract_color{};
                     if (refract_inter) {
-                        if (refract_inter->inside)
-                            intersection.color = intersection.color +
-                                                 (1 - reflection_coefficient) * refract_inter->color * o->color_;
-                        else
-                            intersection.color =
-                                    intersection.color + (1 - reflection_coefficient) * refract_inter->color;
+                        refract_color = (1 - reflection_coefficient) * refract_inter->color;
                     } else {
-                        intersection.color = intersection.color + (1 - reflection_coefficient) * o->color_ * bg_color_;
+                        refract_color = (1 - reflection_coefficient) * bg_color_;
                     }
+                    if (refract_inter->inside)
+                        refract_color = refract_color * o->color_;
+                    intersection.color = intersection.color + refract_color;
                 }
                 continue;
 //                break;

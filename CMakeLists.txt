@@ -5,6 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
+find_package(OpenMP)
+
 add_executable(solution
         src/main.cpp
         src/core/scene.h
@@ -20,3 +22,5 @@ add_executable(solution
         src/render/canvas.cpp
         src/render/canvas.h
         src/utils/timer.h)
+
+target_link_libraries(solution PRIVATE OpenMP::OpenMP_CXX)
