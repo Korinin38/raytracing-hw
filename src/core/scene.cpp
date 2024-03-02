@@ -127,7 +127,7 @@ std::optional<Intersection> Scene::intersect(Ray r, float max_distance, bool no_
 
                 float reflection_coefficient;
                 if (sin_out >= 1.f) {
-                    reflection_coefficient = 0;
+                    reflection_coefficient = 1;
                 } else {
                     float r0 = std::pow((eta_1 - eta_2) / (eta_1 + eta_2), 2.f);
                     reflection_coefficient = r0 + (1 - r0) * std::pow(1 - cos_in, 5.f);
@@ -165,13 +165,10 @@ std::optional<Intersection> Scene::intersect(Ray r, float max_distance, bool no_
                     vector3f refract_color{};
                     if (refract_inter) {
                         refract_color = (1 - reflection_coefficient) * refract_inter->color;
-                        if (intersect_obj->inside)
+                        if (refract_inter->inside)
                             refract_color *= o->color_;
                     } else {
-                        if (refract_inter->inside)
-                            refract_color = (1 - reflection_coefficient) * bg_color_;
-                        else
-                            refract_color = {0.f};
+                        refract_color = (1 - reflection_coefficient) * bg_color_;
                     }
                     intersection.color += refract_color;
                 }
