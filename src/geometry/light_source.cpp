@@ -12,7 +12,7 @@ bool LightSource::parse(const std::string &line) {
         return true;
     } else if (cmd == "LIGHT_DIRECTION") {
         type_ = Directional;
-        direction_ = vec3f_from_string(line, cmd.length() + 1);
+        direction_ = normal(vec3f_from_string(line, cmd.length() + 1));
         return true;
     } else if (cmd == "LIGHT_POSITION") {
         type_ = Positional;

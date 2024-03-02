@@ -84,7 +84,7 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
                 intersection.distance = t2_min;
             }
 
-            // find normal direction
+            // normal calculation
             {
                 vector3f intersection_point = ray.position + intersection.distance * ray.direction;
                 intersection.normal = intersection_point / size_;
@@ -100,6 +100,10 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
                 for (int i = 0; i < 3; ++i) {
                     intersection.normal[i] = (i == max_idx) ? (intersection.normal[i] > 0.f ? 1.f : -1.f) : 0.f;
                 }
+                normalize(intersection.normal);
+
+                if (intersection.inside)
+                    intersection.normal = -intersection.normal;
 
                 intersection.normal = rotate(intersection.normal, rotation_);
             }
@@ -116,8 +120,12 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
             Intersection intersection;
 
             intersection.color = color_;
-            intersection.normal = normal_;
-            intersection.distance = std::abs(t);
+            intersection.normal = rotate(normal_, rotation_);
+            intersection.distance = t;
+            if (dot(ray.direction, normal_) > 0) {
+                intersection.inside = true;
+                intersection.normal = -intersection.normal;
+            }
 
             return std::make_optional(intersection);
         }
@@ -141,6 +149,7 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
 
             if (t2 < 0)
                 return {};
+            //
 
             Intersection intersection;
             intersection.color = color_;
@@ -151,10 +160,14 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
                 intersection.distance = t2;
             }
 
-            vector3f intersection_point = ray.position + intersection.distance * ray.direction;
-            intersection.normal = normal(intersection_point);
-            if (intersection.inside)
-                intersection.normal = -intersection.normal;
+            // normal calculation
+            {
+                vector3f intersection_point = ray.position + intersection.distance * ray.direction;
+                intersection.normal = normal(intersection_point / (radius_ * radius_));
+                intersection.normal = rotate(intersection.normal, rotation_);
+                if (intersection.inside)
+                    intersection.normal = -intersection.normal;
+            }
 
             return std::make_optional(intersection);
         }
