@@ -133,7 +133,6 @@ std::optional<Intersection> Scene::intersect(Ray r, float max_distance, bool no_
                     reflection_coefficient = r0 + (1 - r0) * std::pow(1 - cos_in, 5.f);
                 }
 
-                intersection.color = {};
                 // reflected
                 {
                     vector3f dir = r.direction - 2 * intersect_obj->normal * dot(intersect_obj->normal, r.direction);

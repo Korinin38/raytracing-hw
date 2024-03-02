@@ -149,7 +149,6 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
 
             if (t2 < 0)
                 return {};
-            //
 
             Intersection intersection;
             intersection.color = color_;
