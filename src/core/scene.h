@@ -25,5 +25,6 @@ public:
     std::optional<Intersection> intersect(Ray r, float max_distance = 1e9, bool no_light = false) const;
 private:
     const float gamma = 1.f / 2.2f;
+    const float step = 4e-4;
     class SceneParser;
 };

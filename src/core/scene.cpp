@@ -57,7 +57,7 @@ void Scene::render() const {
             r.power = ray_depth_;
             vector3f color = bg_color_;
 
-            if (i == 607 && j == 72) {
+            if (i == 294 && j == 511) {
                 int a = 1;
             }
 
@@ -137,7 +137,7 @@ std::optional<Intersection> Scene::intersect(Ray r, float max_distance, bool no_
                 {
                     vector3f dir = r.direction - 2 * intersect_obj->normal * dot(intersect_obj->normal, r.direction);
                     normalize(dir);
-                    Ray reflect_ray(pos + dir * 1e-4, dir);
+                    Ray reflect_ray(pos + dir * step, dir);
                     reflect_ray.power = r.power;
                     auto reflect_inter = intersect(reflect_ray, max_distance);
                     vector3f reflect_color{};
@@ -158,14 +158,14 @@ std::optional<Intersection> Scene::intersect(Ray r, float max_distance, bool no_
 
                     vector3f dir = coeff * r.direction + (coeff * cos_in - cos_out) * intersect_obj->normal;
                     normalize(dir);
-                    Ray reflect_ray(pos + dir * 1e-4, dir);
+                    Ray reflect_ray(pos + dir * step, dir);
                     reflect_ray.power = r.power;
                     auto refract_inter = intersect(reflect_ray, max_distance);
 
                     vector3f refract_color{};
                     if (refract_inter) {
                         refract_color = (1 - reflection_coefficient) * refract_inter->color;
-                        if (refract_inter->inside)
+                        if (!intersect_obj->inside)
                             refract_color *= o->color_;
                     } else {
                         refract_color = (1 - reflection_coefficient) * bg_color_;
@@ -177,13 +177,13 @@ std::optional<Intersection> Scene::intersect(Ray r, float max_distance, bool no_
             case Primitive::Metallic: {
                 vector3f dir = r.direction - 2 * intersect_obj->normal * dot(intersect_obj->normal, r.direction);
                 normalize(dir);
-                Ray reflect_ray(pos + dir * 1e-4, dir);
+                Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
                 auto reflect_inter = intersect(reflect_ray, max_distance);
-                if (!reflect_inter) {
-                    intersection.color += o->color_ * bg_color_;
-                } else {
+                if (reflect_inter) {
                     intersection.color += o->color_ * reflect_inter->color;
+                } else {
+                    intersection.color += o->color_ * bg_color_;
                 }
                 continue;
             }
@@ -200,7 +200,7 @@ std::optional<Intersection> Scene::intersect(Ray r, float max_distance, bool no_
                 light_distance = length(dir);
                 normalize(dir);
             }
-            Ray light_ray(pos + dir * 1e-4, dir);
+            Ray light_ray(pos + dir * step, dir);
 
             auto light_inter = intersect(light_ray, light_distance, true);
             if (light_inter)
