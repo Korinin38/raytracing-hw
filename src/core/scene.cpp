@@ -55,14 +55,13 @@ static RandomGenerator engine = rng::get_generator();
 
 void Scene::render(ProgressFunc callback) const {
     timer t;
-//    RandomGenerator rng;
     uniform_float_d offset(-0.5f, 0.5f);
     std::vector<vector3f> sample_canvas;
     sample_canvas.reserve(camera_->canvas_.height() * camera_->canvas_.width());
     if (callback)
         callback(0, &t);
     for (int s = 0; s < samples_; ++s) {
-//        #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
+        #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
         for (int j = 0; j < camera_->canvas_.height(); ++j) {
             for (int i = 0; i < camera_->canvas_.width(); ++i) {
                 vector2f pix_offset{offset(engine), offset(engine)};
@@ -81,7 +80,7 @@ void Scene::render(ProgressFunc callback) const {
             callback((s + 1) * 100 / samples_, &t);
     }
 
-//    #pragma omp parallel for default(none) shared(sample_canvas) collapse(2)
+    #pragma omp parallel for default(none) shared(sample_canvas) collapse(2)
     for (int j = 0; j < camera_->canvas_.height(); ++j) {
         for (int i = 0; i < camera_->canvas_.width(); ++i) {
             vector3f color = sample_canvas[j * camera_->canvas_.width() + i];
@@ -131,8 +130,6 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
 
     {
         vector3f pos = r.position + r.direction * intersection.distance;
-
-//        RandomGenerator rng = rng::get_generator();
 
         switch(objects_[intersected_idx]->material_) {
             case Primitive::Diffuse: {
