@@ -1,5 +1,6 @@
 #include "scene.h"
 #include "utils/base.h"
+#include "utils/timer.h"
 
 #include <iostream>
 #include <fstream>
@@ -52,32 +53,42 @@ Scene::Scene(const std::string &filename) {
 
 static RandomGenerator engine = rng::get_generator();
 
-void Scene::render() const {
+void Scene::render(ProgressFunc callback) const {
+    timer t;
 //    RandomGenerator rng;
     uniform_float_d offset(-0.5f, 0.5f);
-
-    #pragma omp parallel for shared(offset) collapse(2)
-    for (int j = 0; j < camera_->canvas_.height(); ++j) {
-        for (int i = 0; i < camera_->canvas_.width(); ++i) {
-            vector2i pix_pos{i, j};
-            vector3f color{};
-            for (int s = 0; s < samples_; ++s) {
+    std::vector<vector3f> sample_canvas;
+    sample_canvas.reserve(camera_->canvas_.height() * camera_->canvas_.width());
+    callback(0, &t);
+    for (int s = 0; s < samples_; ++s) {
+//        #pragma omp parallel for shared(engine, offset, sample_canvas) collapse(2)
+        #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
+        for (int j = 0; j < camera_->canvas_.height(); ++j) {
+            for (int i = 0; i < camera_->canvas_.width(); ++i) {
                 vector2f pix_offset{offset(engine), offset(engine)};
+                vector2i pix_pos{i, j};
                 Ray r = camera_->cast_in_pixel(pix_pos, pix_offset);
                 r.power = ray_depth_;
-                vector3f sample_color = bg_color_;
 
                 auto intersection = intersect(r);
-                if (intersection) {
-                    sample_color = intersection.color;
-                }
-                color += sample_color;
+                if (s == 0)
+                    sample_canvas[j * camera_->canvas_.height() + i] = intersection.color;
+                else
+                    sample_canvas[j * camera_->canvas_.height() + i] += intersection.color;
             }
+        }
+//        std::cout << "\r" << s + 1 << "/" << samples_ << std::flush;
+        callback((s + 1) * 100 / samples_, &t);
+    }
 
+    #pragma omp parallel for default(none) shared(sample_canvas) collapse(2)
+    for (int j = 0; j < camera_->canvas_.height(); ++j) {
+        for (int i = 0; i < camera_->canvas_.width(); ++i) {
+            vector3f color = sample_canvas[j * camera_->canvas_.height() + i];
             color *= (1.f / (float)samples_);
             color = aces_tonemap(color);
             color = pow(color, gamma);
-            camera_->canvas_.set(pix_pos, normal_to_ch8bit(color));
+            camera_->canvas_.set({i, j}, normal_to_ch8bit(color));
         }
     }
 }

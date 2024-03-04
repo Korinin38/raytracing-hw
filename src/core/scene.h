@@ -8,11 +8,13 @@
 #include <string>
 #include <vector>
 
+typedef bool (*ProgressFunc)(int progress, void *userData);
+
 class Scene {
 public:
     Scene(const std::string &filename);
 
-    void render() const;
+    void render(ProgressFunc = nullptr) const;
     void draw_into(const std::string &filename) const;
 
     camera_uniq_ptr camera_;
