@@ -50,8 +50,10 @@ Scene::Scene(const std::string &filename) {
     (SceneParser(*this, filename));
 }
 
+static RandomGenerator engine = rng::get_generator();
+
 void Scene::render() const {
-    RandomGenerator rng;
+//    RandomGenerator rng;
     uniform_float_d offset(-0.5f, 0.5f);
 
     #pragma omp parallel for shared(offset) collapse(2)
@@ -60,7 +62,7 @@ void Scene::render() const {
             vector2i pix_pos{i, j};
             vector3f color{};
             for (int s = 0; s < samples_; ++s) {
-                vector2f pix_offset{offset(rng), offset(rng)};
+                vector2f pix_offset{offset(engine), offset(engine)};
                 Ray r = camera_->cast_in_pixel(pix_pos, pix_offset);
                 r.power = ray_depth_;
                 vector3f sample_color = bg_color_;
@@ -114,11 +116,11 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
 
         vector3f pos = r.position + r.direction * intersect_obj.distance;
 
-        RandomGenerator gen = rng::get_generator();
+//        RandomGenerator rng = rng::get_generator();
 
         switch(o->material_) {
             case Primitive::Diffuse: {
-                vector3f dir = rng::get_sphere(gen);
+                vector3f dir = rng::get_sphere(engine);
                 if (dot(dir, intersect_obj.normal) < 0)
                     dir = -dir;
                 Ray reflect_ray(pos + dir * step, dir);
@@ -145,7 +147,7 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                     float r0 = std::pow((eta_1 - eta_2) / (eta_1 + eta_2), 2.f);
                     reflection_coefficient = r0 + (1 - r0) * std::pow(1 - cos_in, 5.f);
                     uniform_float_d ray_chooser(0.f, 1.f);
-                    direction = ray_chooser(gen);
+                    direction = ray_chooser(engine);
                 }
 
                 if (direction < reflection_coefficient)
