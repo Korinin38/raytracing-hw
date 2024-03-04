@@ -62,7 +62,7 @@ void Scene::render(ProgressFunc callback) const {
     callback(0, &t);
     for (int s = 0; s < samples_; ++s) {
 //        #pragma omp parallel for shared(engine, offset, sample_canvas) collapse(2)
-        #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
+//        #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
         for (int j = 0; j < camera_->canvas_.height(); ++j) {
             for (int i = 0; i < camera_->canvas_.width(); ++i) {
                 vector2f pix_offset{offset(engine), offset(engine)};
@@ -72,9 +72,9 @@ void Scene::render(ProgressFunc callback) const {
 
                 auto intersection = intersect(r);
                 if (s == 0)
-                    sample_canvas[j * camera_->canvas_.height() + i] = intersection.color;
+                    sample_canvas[j * camera_->canvas_.width() + i] = intersection.color;
                 else
-                    sample_canvas[j * camera_->canvas_.height() + i] += intersection.color;
+                    sample_canvas[j * camera_->canvas_.width() + i] += intersection.color;
             }
         }
 //        std::cout << "\r" << s + 1 << "/" << samples_ << std::flush;
@@ -84,7 +84,7 @@ void Scene::render(ProgressFunc callback) const {
     #pragma omp parallel for default(none) shared(sample_canvas) collapse(2)
     for (int j = 0; j < camera_->canvas_.height(); ++j) {
         for (int i = 0; i < camera_->canvas_.width(); ++i) {
-            vector3f color = sample_canvas[j * camera_->canvas_.height() + i];
+            vector3f color = sample_canvas[j * camera_->canvas_.width() + i];
             color *= (1.f / (float)samples_);
             color = aces_tonemap(color);
             color = pow(color, gamma);
