@@ -43,6 +43,7 @@ int main(int argc, char *argv[]) {
 //    scene.render(ProgressCallback);
     scene.render();
 
+    ProgressCallback(100, &t);
     scene.draw_into(output);
     std::cout << "Frame drawn into " << output << std::endl;
     return 0;
