@@ -59,9 +59,8 @@ void Scene::render(ProgressFunc callback) const {
     uniform_float_d offset(-0.5f, 0.5f);
     std::vector<vector3f> sample_canvas;
     sample_canvas.reserve(camera_->canvas_.height() * camera_->canvas_.width());
-    callback(0, &t);
+//    callback(0, &t);
     for (int s = 0; s < samples_; ++s) {
-//        #pragma omp parallel for shared(engine, offset, sample_canvas) collapse(2)
 //        #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
         for (int j = 0; j < camera_->canvas_.height(); ++j) {
             for (int i = 0; i < camera_->canvas_.width(); ++i) {
@@ -78,7 +77,7 @@ void Scene::render(ProgressFunc callback) const {
             }
         }
 //        std::cout << "\r" << s + 1 << "/" << samples_ << std::flush;
-        callback((s + 1) * 100 / samples_, &t);
+//        callback((s + 1) * 100 / samples_, &t);
     }
 
     #pragma omp parallel for default(none) shared(sample_canvas) collapse(2)
