@@ -2,6 +2,7 @@
 #include "utils/timer.h"
 
 #include <iostream>
+#include <iomanip>
 
 static bool ProgressCallback(int progress, void *userData) {
     auto t = (timer *) userData;
@@ -37,7 +38,7 @@ int main(int argc, char *argv[]) {
 
     timer t;
     Scene scene(input);
-    std::cout << "Scene loaded (" << t.elapsed() << " seconds)." << std::endl;
+    std::cout << "Scene loaded: " << std::setprecision(2) << t.elapsed() << " seconds." << std::endl;
 
     t.restart();
 //    scene.render(ProgressCallback);
