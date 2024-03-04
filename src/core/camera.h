@@ -19,7 +19,7 @@ public:
     vector2i get_canvas_size() const;
 
     vector3f get_position() const;
-    vector3f set_position(vector3f position);
+    void set_position(vector3f position);
 
     vector3f get_axis(int dim) const;
     vector3f get_axis_right() const;
@@ -32,7 +32,7 @@ public:
 //    vector2i project(vector3f point);
 
     // NB: casts into a center of a pixel
-    Ray cast_in_pixel(vector2i p);
+    Ray cast_in_pixel(vector2i p, vector2f rand_offset = {});
 
 private:
     vector3f position_{};

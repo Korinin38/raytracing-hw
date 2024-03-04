@@ -12,10 +12,12 @@ class Ray;
 typedef std::shared_ptr<Primitive> primitive_sh_ptr;
 
 typedef struct {
+    bool successful = false;
     float distance;
     vector3f normal;
     vector3f color;
     bool inside = false;
+    operator bool() const;
 } Intersection;
 
 class Primitive {
@@ -40,10 +42,11 @@ public:
     vector4f rotation_ = {0, 0, 0,1};
 
     vector3f color_ = {0, 0, 0};
+    vector3f emission_ = {0, 0, 0};
 
     Primitive() = default;
     bool parse(const std::string& line);
-    [[nodiscard]] std::optional<Intersection> intersect(Ray ray) const;
+    [[nodiscard]] Intersection intersect(Ray ray) const;
 
 protected:
     // shift and rotate Ray to make itself behave like axis-aligned, in origin

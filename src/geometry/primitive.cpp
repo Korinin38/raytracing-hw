@@ -4,6 +4,10 @@
 #include <cmath>
 #include <sstream>
 
+Intersection::operator bool() const {
+    return successful;
+}
+
 bool Primitive::parse(const std::string& line) {
     std::stringstream ss(line);
     std::string cmd;
@@ -31,6 +35,9 @@ bool Primitive::parse(const std::string& line) {
     } else if (cmd == "COLOR") {
         color_ = vec3f_from_string(line, cmd.length() + 1);
         return true;
+    } else if (cmd == "EMISSION") {
+        emission_ = vec3f_from_string(line, cmd.length() + 1);
+        return true;
     } else if (cmd == "METALLIC") {
         material_ = Metallic;
         return true;
@@ -56,7 +63,7 @@ Ray::Ray(vector3f p, vector3f d) : position(p), direction(d) {
     normalize(direction);
 }
 
-std::optional<Intersection> Primitive::intersect(Ray ray) const {
+Intersection Primitive::intersect(Ray ray) const {
     translateRay(ray);
 
     switch (type_) {
@@ -77,6 +84,7 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
                 return {};
 
             Intersection intersection;
+            intersection.successful = true;
             intersection.distance = t1_max;
             intersection.color = color_;
             if (t1_max < 0) {
@@ -107,7 +115,7 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
 
                 intersection.normal = rotate(intersection.normal, rotation_);
             }
-            return std::make_optional(intersection);
+            return intersection;
         }
         case Plane: {
             const vector3f &normal_ = param_;
@@ -119,6 +127,7 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
 
             Intersection intersection;
 
+            intersection.successful = true;
             intersection.color = color_;
             intersection.normal = rotate(normal_, rotation_);
             intersection.distance = t;
@@ -127,7 +136,7 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
                 intersection.normal = -intersection.normal;
             }
 
-            return std::make_optional(intersection);
+            return intersection;
         }
         case Ellipsoid: {
             const vector3f &radius_ = param_;
@@ -151,6 +160,7 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
                 return {};
 
             Intersection intersection;
+            intersection.successful = true;
             intersection.color = color_;
             intersection.distance = t1;
 
@@ -168,7 +178,7 @@ std::optional<Intersection> Primitive::intersect(Ray ray) const {
                     intersection.normal = -intersection.normal;
             }
 
-            return std::make_optional(intersection);
+            return intersection;
         }
     }
 }
