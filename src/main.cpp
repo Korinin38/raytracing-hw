@@ -40,7 +40,8 @@ int main(int argc, char *argv[]) {
     std::cout << "Scene loaded (" << t.elapsed() << " seconds)." << std::endl;
 
     t.restart();
-    scene.render(ProgressCallback);
+//    scene.render(ProgressCallback);
+    scene.render();
 
     scene.draw_into(output);
     std::cout << "Frame drawn into " << output << std::endl;
