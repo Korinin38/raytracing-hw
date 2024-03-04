@@ -108,43 +108,48 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
     intersection.color = bg_color_;
     intersection.inside = false;
 
-    for (const auto& o : objects_) {
-        auto intersect_obj = o->intersect(r);
+    int intersected_idx = -1;
+
+    for (int i = 0; i < objects_.size(); ++i) {
+        auto intersect_obj = objects_[i]->intersect(r);
         if (!intersect_obj) continue;
 
         if (intersect_obj.distance > intersection.distance) {
             continue;
         }
+        intersected_idx = i;
         intersection.successful = true;
         intersection.inside = intersect_obj.inside;
         intersection.distance = intersect_obj.distance;
         intersection.normal = intersect_obj.normal;
-        intersection.color = o->emission_;
+        intersection.color = objects_[i]->emission_;
+    }
 
         // simple check with no light or color
-        if (no_color)
-            continue;
+    if (no_color || intersected_idx >= objects_.size())
+        return intersection;
 
-        vector3f pos = r.position + r.direction * intersect_obj.distance;
+    {
+        vector3f pos = r.position + r.direction * intersection.distance;
 
 //        RandomGenerator rng = rng::get_generator();
 
-        switch(o->material_) {
+        switch(objects_[intersected_idx]->material_) {
             case Primitive::Diffuse: {
                 vector3f dir = rng::get_sphere(engine);
-                if (dot(dir, intersect_obj.normal) < 0)
+                if (dot(dir, intersection.normal) < 0)
                     dir = -dir;
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
                 auto reflect_inter = intersect(reflect_ray, max_distance);
-                intersection.color += reflect_inter.color * o->color_ * 2 * dot(dir, intersect_obj.normal);
+                intersection.color += reflect_inter.color * objects_[intersected_idx]->color_ * 2 * dot(dir, intersection.normal);
                 break;
             }
             case Primitive::Dielectric: {
-                float cos_in = -dot(intersect_obj.normal, r.direction);
+                float cos_in = -dot(intersection.normal, r.direction);
                 float eta_1 = 1.f;
-                float eta_2 = o->ior_;
-                if (intersect_obj.inside)
+                float eta_2 = objects_[intersected_idx]->ior_;
+                if (intersection.inside)
                     std::swap(eta_1, eta_2);
                 float refractive_index = eta_1 / eta_2;
                 float sin_out = refractive_index * std::sqrt(1 - cos_in * cos_in);
@@ -164,7 +169,7 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                 if (direction < reflection_coefficient)
                 {
                     // reflected
-                    vector3f dir = r.direction - 2 * intersect_obj.normal * dot(intersect_obj.normal, r.direction);
+                    vector3f dir = r.direction - 2 * intersection.normal * dot(intersection.normal, r.direction);
                     normalize(dir);
                     Ray reflect_ray(pos + dir * step, dir);
                     reflect_ray.power = r.power;
@@ -176,7 +181,7 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                     float cos_out = std::sqrt(1 - sin_out * sin_out);
                     float coeff = eta_1 / eta_2;
 
-                    vector3f dir = coeff * r.direction + (coeff * cos_in - cos_out) * intersect_obj.normal;
+                    vector3f dir = coeff * r.direction + (coeff * cos_in - cos_out) * intersection.normal;
                     normalize(dir);
                     Ray reflect_ray(pos + dir * step, dir);
                     reflect_ray.power = r.power;
@@ -185,23 +190,21 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                     vector3f refract_color{};
                     if (refract_inter) {
                         refract_color = refract_inter.color;
-                        if (!intersect_obj.inside)
-                            refract_color *= o->color_;
+                        if (!intersection.inside)
+                            refract_color *= objects_[intersected_idx]->color_;
                     } else {
                         refract_color = bg_color_;
                     }
                     intersection.color += refract_color;
                 }
-                continue;
             }
             case Primitive::Metallic: {
-                vector3f dir = r.direction - 2 * intersect_obj.normal * dot(intersect_obj.normal, r.direction);
+                vector3f dir = r.direction - 2 * intersection.normal * dot(intersection.normal, r.direction);
                 normalize(dir);
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
                 auto reflect_inter = intersect(reflect_ray, max_distance);
-                intersection.color += o->color_ * reflect_inter.color;
-                continue;
+                intersection.color += objects_[intersected_idx]->color_ * reflect_inter.color;
             }
         }
 
