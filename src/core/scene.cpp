@@ -61,7 +61,7 @@ void Scene::render(ProgressFunc callback) const {
     sample_canvas.reserve(camera_->canvas_.height() * camera_->canvas_.width());
     callback(0, &t);
     for (int s = 0; s < samples_; ++s) {
-        #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
+//        #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
         for (int j = 0; j < camera_->canvas_.height(); ++j) {
             for (int i = 0; i < camera_->canvas_.width(); ++i) {
                 vector2f pix_offset{offset(engine), offset(engine)};
@@ -79,7 +79,7 @@ void Scene::render(ProgressFunc callback) const {
         callback((s + 1) * 100 / samples_, &t);
     }
 
-    #pragma omp parallel for default(none) shared(sample_canvas) collapse(2)
+//    #pragma omp parallel for default(none) shared(sample_canvas) collapse(2)
     for (int j = 0; j < camera_->canvas_.height(); ++j) {
         for (int i = 0; i < camera_->canvas_.width(); ++i) {
             vector3f color = sample_canvas[j * camera_->canvas_.width() + i];
