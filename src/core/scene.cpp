@@ -59,9 +59,9 @@ void Scene::render(ProgressFunc callback) const {
     uniform_float_d offset(-0.5f, 0.5f);
     std::vector<vector3f> sample_canvas;
     sample_canvas.reserve(camera_->canvas_.height() * camera_->canvas_.width());
-//    callback(0, &t);
+    callback(0, &t);
     for (int s = 0; s < samples_; ++s) {
-//        #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
+        #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
         for (int j = 0; j < camera_->canvas_.height(); ++j) {
             for (int i = 0; i < camera_->canvas_.width(); ++i) {
                 vector2f pix_offset{offset(engine), offset(engine)};
@@ -76,8 +76,7 @@ void Scene::render(ProgressFunc callback) const {
                     sample_canvas[j * camera_->canvas_.width() + i] += intersection.color;
             }
         }
-//        std::cout << "\r" << s + 1 << "/" << samples_ << std::flush;
-//        callback((s + 1) * 100 / samples_, &t);
+        callback((s + 1) * 100 / samples_, &t);
     }
 
     #pragma omp parallel for default(none) shared(sample_canvas) collapse(2)
@@ -173,8 +172,7 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                     Ray reflect_ray(pos + dir * step, dir);
                     reflect_ray.power = r.power;
                     auto reflect_inter = intersect(reflect_ray, max_distance);
-                    vector3f reflect_color = reflect_inter.color;
-                    intersection.color += reflect_color;
+                    intersection.color += reflect_inter.color;
                 } else {
                     // refracted
                     float cos_out = std::sqrt(1 - sin_out * sin_out);
@@ -196,6 +194,7 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                     }
                     intersection.color += refract_color;
                 }
+                break;
             }
             case Primitive::Metallic: {
                 vector3f dir = r.direction - 2 * intersection.normal * dot(intersection.normal, r.direction);
@@ -204,35 +203,9 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                 reflect_ray.power = r.power;
                 auto reflect_inter = intersect(reflect_ray, max_distance);
                 intersection.color += objects_[intersected_idx]->color_ * reflect_inter.color;
+                break;
             }
         }
-
-//        for (const auto& l : light_) {
-//            vector3f dir{};
-//            float light_distance = max_distance;
-//
-//            if (l->type_ == LightSource::Directional) {
-//                dir = l->direction_;
-//            } else {
-//                dir = l->position_ - pos;
-//                light_distance = length(dir);
-//                normalize(dir);
-//            }
-//            Ray light_ray(pos + dir * step, dir);
-//
-//            auto light_inter = intersect(light_ray, light_distance, true);
-//            if (light_inter)
-//                continue;
-//            vector3f light_color = l->intensity_;
-//            if (l->type_ == LightSource::Positional) {
-//                light_color *= (1.f / (l->attenuation_[0]
-//                                                    + l->attenuation_[1] * light_distance
-//                                                    + l->attenuation_[2] * light_distance * light_distance));
-//            }
-//
-//            light_color *= std::max(0.f, dot(dir, intersect_obj.normal));
-//            intersection.color += o->color_ * light_color;
-//        }
     }
     return intersection;
 }
