@@ -59,7 +59,8 @@ void Scene::render(ProgressFunc callback) const {
     uniform_float_d offset(-0.5f, 0.5f);
     std::vector<vector3f> sample_canvas;
     sample_canvas.reserve(camera_->canvas_.height() * camera_->canvas_.width());
-    callback(0, &t);
+    if (callback)
+        callback(0, &t);
     for (int s = 0; s < samples_; ++s) {
 //        #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
         for (int j = 0; j < camera_->canvas_.height(); ++j) {
@@ -76,7 +77,8 @@ void Scene::render(ProgressFunc callback) const {
                     sample_canvas[j * camera_->canvas_.width() + i] += intersection.color;
             }
         }
-        callback((s + 1) * 100 / samples_, &t);
+        if (callback)
+            callback((s + 1) * 100 / samples_, &t);
     }
 
 //    #pragma omp parallel for default(none) shared(sample_canvas) collapse(2)
