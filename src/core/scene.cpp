@@ -106,7 +106,7 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
         intersection.inside = intersect_obj.inside;
         intersection.distance = intersect_obj.distance;
         intersection.normal = intersect_obj.normal;
-        intersection.color = {0.f};
+        intersection.color = o->emission_;
 
         // simple check with no light or color
         if (no_color)
@@ -124,8 +124,7 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
                 auto reflect_inter = intersect(reflect_ray, max_distance);
-                intersection.color = reflect_inter.color;
-                intersection.color = o->emission_ + reflect_inter.color * o->color_ * 2 * dot(dir, intersect_obj.normal);
+                intersection.color += reflect_inter.color * o->color_ * 2 * dot(dir, intersect_obj.normal);
                 break;
             }
             case Primitive::Dielectric: {
@@ -137,29 +136,30 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                 float refractive_index = eta_1 / eta_2;
                 float sin_out = refractive_index * std::sqrt(1 - cos_in * cos_in);
 
+                float direction;
                 float reflection_coefficient;
                 if (sin_out >= 1.f) {
+                    direction = 0;
                     reflection_coefficient = 1;
                 } else {
                     float r0 = std::pow((eta_1 - eta_2) / (eta_1 + eta_2), 2.f);
                     reflection_coefficient = r0 + (1 - r0) * std::pow(1 - cos_in, 5.f);
+                    uniform_float_d ray_chooser(0.f, 1.f);
+                    direction = ray_chooser(gen);
                 }
 
-                // reflected
+                if (direction < reflection_coefficient)
                 {
+                    // reflected
                     vector3f dir = r.direction - 2 * intersect_obj.normal * dot(intersect_obj.normal, r.direction);
                     normalize(dir);
                     Ray reflect_ray(pos + dir * step, dir);
                     reflect_ray.power = r.power;
                     auto reflect_inter = intersect(reflect_ray, max_distance);
-                    vector3f reflect_color{};
-                    reflect_color = reflection_coefficient * reflect_inter.color;
+                    vector3f reflect_color = reflect_inter.color;
                     intersection.color += reflect_color;
-                }
-                if (sin_out >= 1.f)
-                    continue;
-                // refracted
-                {
+                } else {
+                    // refracted
                     float cos_out = std::sqrt(1 - sin_out * sin_out);
                     float coeff = eta_1 / eta_2;
 
@@ -171,11 +171,11 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
 
                     vector3f refract_color{};
                     if (refract_inter) {
-                        refract_color = (1 - reflection_coefficient) * refract_inter.color;
+                        refract_color = refract_inter.color;
                         if (!intersect_obj.inside)
                             refract_color *= o->color_;
                     } else {
-                        refract_color = (1 - reflection_coefficient) * bg_color_;
+                        refract_color = bg_color_;
                     }
                     intersection.color += refract_color;
                 }
