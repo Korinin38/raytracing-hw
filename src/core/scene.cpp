@@ -60,7 +60,8 @@ Scene::Scene(const std::string &filename) {
 
     random_distributions.add_dist(std::make_shared<CosineWeightedDistribution>());
     // todo: make it back
-    random_distributions.add_dist(light);
+    if (light->get_size() > 0)
+        random_distributions.add_dist(light);
 //    random_distributions = *light;
 }
 

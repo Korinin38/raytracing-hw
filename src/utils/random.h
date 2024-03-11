@@ -66,6 +66,7 @@ public:
     vector3f sphere_sample(vector3f point, vector3f normal) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
     void add_dist(const random_distribution_sh_ptr& dist);
+    size_t get_size() const;
 private:
     std::vector<random_distribution_sh_ptr> distributions;
     UniformDistribution uni;

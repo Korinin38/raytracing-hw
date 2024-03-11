@@ -178,7 +178,7 @@ void MixedDistribution::add_dist(const random_distribution_sh_ptr& dist) {
 
 vector3f MixedDistribution::sphere_sample(vector3f point, vector3f normal) {
     if (distributions.empty())
-        return normal;
+        throw std::runtime_error("No distributions to sample from");
     int sample = std::floor(uni.sample() * (float)distributions.size());
     if (sample == distributions.size())
         sample -= 1;
@@ -191,4 +191,8 @@ float MixedDistribution::pdf(vector3f point, vector3f normal, vector3f direction
         prob += d->pdf(point, normal, direction);
     }
     return prob / (float)distributions.size();
+}
+
+size_t MixedDistribution::get_size() const {
+    return distributions.size();
 }
