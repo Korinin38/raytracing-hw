@@ -67,14 +67,14 @@ Scene::Scene(const std::string &filename) {
 static Engine engine = rng::get_generator();
 
 void Scene::render(ProgressFunc callback) const {
-    if (callback == nullptr)
-        std::cout << "Render launched." << std::endl;
     timer t;
     uniform_float_d offset(-0.5f, 0.5f);
     std::vector<vector3f> sample_canvas;
     sample_canvas.reserve(camera_->canvas_.height() * camera_->canvas_.width());
-    if (callback)
+    if (callback != nullptr)
         callback(0, &t);
+    if (callback == nullptr)
+        std::cout << "Render launched." << std::endl;
     for (int s = 0; s < samples_; ++s) {
 #ifdef NDEBUG
         #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
@@ -93,7 +93,7 @@ void Scene::render(ProgressFunc callback) const {
                     sample_canvas[j * camera_->canvas_.width() + i] += intersection.color;
             }
         }
-        if (callback)
+        if (callback != nullptr)
             callback((s + 1) * 100 / samples_, &t);
     }
 
