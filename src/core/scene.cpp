@@ -71,9 +71,9 @@ void Scene::render(ProgressFunc callback) const {
     uniform_float_d offset(-0.5f, 0.5f);
     std::vector<vector3f> sample_canvas;
     sample_canvas.reserve(camera_->canvas_.height() * camera_->canvas_.width());
-    if (callback != nullptr)
+    if (callback)
         callback(0, &t);
-    if (callback == nullptr)
+    else
         std::cout << "Render launched." << std::endl;
     for (int s = 0; s < samples_; ++s) {
 #ifdef NDEBUG
