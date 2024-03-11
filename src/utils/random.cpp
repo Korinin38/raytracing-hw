@@ -49,7 +49,7 @@ vector3f CosineWeightedDistribution::sphere_sample(vector3f point, vector3f norm
     vector3f dir{};
     do {
         dir = uni_dist.sphere_sample(point, normal) + normal;
-    } while (length(dir) < 1e-5);
+    } while (length(dir) < 1e-12);
     normalize(dir);
     return dir;
 }
@@ -79,6 +79,8 @@ vector3f LightDistribution::sphere_sample(vector3f point, vector3f normal) {
                 face = 1;
             } else if (sample < full_area) {
                 face = 2;
+            } else {
+                throw std::runtime_error("Unexpected face value.");
             }
 
             const float side = (uni_dist.sample() < 0.f) ? -1.f : 1.f;
