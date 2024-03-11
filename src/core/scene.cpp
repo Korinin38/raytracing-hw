@@ -77,7 +77,7 @@ void Scene::render(ProgressFunc callback) const {
         std::cout << "Render launched." << std::endl;
     for (int s = 0; s < samples_; ++s) {
 #ifdef NDEBUG
-        #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
+//        #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
 #endif
         for (int j = 0; j < camera_->canvas_.height(); ++j) {
             for (int i = 0; i < camera_->canvas_.width(); ++i) {
@@ -93,11 +93,11 @@ void Scene::render(ProgressFunc callback) const {
                     sample_canvas[j * camera_->canvas_.width() + i] += intersection.color;
             }
         }
-        if (callback != nullptr)
+        if (callback)
             callback((s + 1) * 100 / samples_, &t);
     }
 
-    #pragma omp parallel for default(none) shared(sample_canvas) collapse(2)
+//    #pragma omp parallel for default(none) shared(sample_canvas) collapse(2)
     for (int j = 0; j < camera_->canvas_.height(); ++j) {
         for (int i = 0; i < camera_->canvas_.width(); ++i) {
             vector3f color = sample_canvas[j * camera_->canvas_.width() + i];
@@ -150,7 +150,7 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
 
         switch(objects_[intersected_idx]->material_) {
             case Primitive::Diffuse: {
-                vector3f dir;
+                vector3f dir{};
                 float pdf = 0.f;
                 float cos;
                 dir = random_distributions.sphere_sample(pos, intersection.normal);
