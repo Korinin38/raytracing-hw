@@ -101,9 +101,7 @@ vector3f LightDistribution::sphere_sample(vector3f point, vector3f normal) {
         default:
             throw std::runtime_error("rassert failed: light sample from Plane primitive");
     }
-    res = rotate(res, primitive->rotation_);
-    res += primitive->position_;
-//    res = primitive->to_global(res);
+    res = primitive->to_global(res);
     return ::normal(res - point);
 }
 
@@ -119,9 +117,7 @@ float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction
         return 0.f;
     }
     intersection[1] = primitive->intersect({point + direction * intersection[0].distance + direction * step, direction});
-    if (!intersection[1]) {
-        intersection[1] = intersection[0];
-    } else {
+    if (intersection[1]) {
         intersection[1].distance += intersection[0].distance;
     }
 
@@ -166,8 +162,9 @@ float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction
 
     float res = 0.f;
     for (int i = 0; i <= 1; ++i) {
-        float cos = std::abs(dot(intersection[i].normal, direction));
-        res += std::abs(probability[i] * (intersection[i].distance * intersection[i].distance) / cos);
+        if (!intersection[i])
+            break;
+        res += std::abs(probability[i] * (intersection[i].distance * intersection[i].distance) / std::abs(dot(intersection[i].normal, direction)));
     }
     return res;
 }

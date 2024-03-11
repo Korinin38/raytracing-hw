@@ -156,7 +156,7 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                 if (cos <= 0.f)
                     break;
                 pdf = random_distributions.pdf(pos, intersection.normal, dir);
-                if (pdf <= 0.f)
+                if (pdf <= 0.f || isnanf(pdf))
                     break;
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
