@@ -50,6 +50,7 @@ public:
     [[nodiscard]] Intersection intersect(Ray ray) const;
 
     vector3f to_global(vector3f local) const;
+    vector3f to_local(vector3f global) const;
 protected:
     // shift and rotate Ray to make itself behave like axis-aligned, in origin
     void translateRay(Ray &ray) const;

@@ -191,3 +191,7 @@ bool Primitive::emissive() {
 vector3f Primitive::to_global(vector3f local) const {
     return rotate(local, rotation_) + position_;
 }
+
+vector3f Primitive::to_local(vector3f global) const {
+    return rotate(global - position_, *rotation_);
+}

@@ -138,7 +138,7 @@ float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction
                     break;
 
                 // get normal of point of sphere corresponding to the point of ellipsoid
-                vector3f ell_point = rotate((point + direction * intersection[i].distance) - primitive->position_, *(primitive->rotation_));
+                vector3f ell_point = primitive->to_local(point + direction * intersection[i].distance);
                 vector3f sphere_normal = ell_point / ellipsoid_radius;
 
                 float area_squared = 0.f;
@@ -186,6 +186,8 @@ vector3f MixedDistribution::sphere_sample(vector3f point, vector3f normal) {
 }
 
 float MixedDistribution::pdf(vector3f point, vector3f normal, vector3f direction) {
+    if (distributions.empty())
+        throw std::runtime_error("No distributions to sample from");
     float prob = 0.f;
     for (auto &d : distributions) {
         prob += d->pdf(point, normal, direction);

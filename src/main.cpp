@@ -40,6 +40,7 @@ int main(int argc, char *argv[]) {
     Scene scene(input);
     std::cout << "Scene loaded: " << std::setprecision(2) << t.elapsed() << " seconds." << std::endl;
 
+    std::cout << std::setprecision(6);
     t.restart();
 //    scene.render(ProgressCallback);
     scene.render();
