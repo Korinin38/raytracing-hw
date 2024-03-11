@@ -182,3 +182,13 @@ Intersection Primitive::intersect(Ray ray) const {
         }
     }
 }
+
+bool Primitive::emissive() {
+    vector3f zero{};
+    return (emission_ != zero);
+}
+
+vector3f Primitive::to_global(vector3f local) const {
+    local = rotate(local, rotation_);
+    return local + position_;
+}

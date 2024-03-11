@@ -46,8 +46,10 @@ public:
 
     Primitive() = default;
     bool parse(const std::string& line);
+    bool emissive();
     [[nodiscard]] Intersection intersect(Ray ray) const;
 
+    vector3f to_global(vector3f local) const;
 protected:
     // shift and rotate Ray to make itself behave like axis-aligned, in origin
     void translateRay(Ray &ray) const;

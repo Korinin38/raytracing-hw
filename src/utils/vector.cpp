@@ -164,6 +164,10 @@ vector3f &vector3f::operator+=(vector3f b) {
     return *this;
 }
 
+vector3f operator+(vector3f a, float t) {
+    return {a.x + t, a.y + t, a.z + t};
+}
+
 vector3f operator+(vector3f a, vector3f b) {
     vector3f r = a;
     r += b;
@@ -209,6 +213,14 @@ vector3f operator/(vector3f a, vector3f b) {
     return result;
 }
 
+bool operator==(vector3f a, vector3f b) {
+    return (a[0] == b[0] && a[1] == b[1] && a[2] == b[2]);
+}
+
+bool operator!=(vector3f a, vector3f b) {
+    return !(a == b);
+}
+
 vector3f pow(vector3f v, float power) {
     return {std::pow(v.x, power), std::pow(v.y, power), std::pow(v.z, power)};
 }
@@ -249,10 +261,6 @@ vector3f rotate(vector3f v, vector3f axis, float angle) {
     float sin = std::sin(angle) / 2;
     axis = axis * sin;
     return rotate(v, {axis.x, axis.y, axis.z, std::cos(angle / 2)});
-}
-
-vector3f operator+(vector3f a, float t) {
-    return {a.x + t, a.y + t, a.z + t};
 }
 
 template<class T>

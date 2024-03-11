@@ -4,7 +4,6 @@ project(solution)
 set(CMAKE_CXX_STANDARD 17)
 
 include_directories(${CMAKE_SOURCE_DIR}/src )
-#include_directories(${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/third_party)
 
 find_package(OpenMP)
 
@@ -27,9 +26,5 @@ add_executable(solution
         src/utils/random.h
         src/utils/vector.cpp
         src/utils/random.cpp)
-
-#add_subdirectory(third_party)
-
-#target_link_libraries(solution PRIVATE pcg)
 
 target_link_libraries(solution PRIVATE OpenMP::OpenMP_CXX)

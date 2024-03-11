@@ -8,6 +8,8 @@
 #include <memory>
 #include <cmath>
 
+const float step = 1e-4;
+
 class Scene::SceneParser {
 public:
     SceneParser(Scene &scene, const std::string &filename);
@@ -49,9 +51,20 @@ ParseStage get_parse_stage(std::string cmd) {
 
 Scene::Scene(const std::string &filename) {
     (SceneParser(*this, filename));
+
+    mixed_distribution_sh_ptr light = std::make_shared<MixedDistribution>();
+    for (const auto& o : objects_) {
+        if (o->emissive() && o->type_ != Primitive::Plane)
+            light->add_dist(std::make_shared<LightDistribution>(*o));
+    }
+
+    random_distributions.add_dist(std::make_shared<CosineWeightedDistribution>());
+    // todo: make it back
+//    random_distributions.add_dist(light);
+//    random_distributions = *light;
 }
 
-static RandomGenerator engine = rng::get_generator();
+static Engine engine = rng::get_generator();
 
 void Scene::render(ProgressFunc callback) const {
     timer t;
@@ -61,7 +74,9 @@ void Scene::render(ProgressFunc callback) const {
     if (callback)
         callback(0, &t);
     for (int s = 0; s < samples_; ++s) {
+#ifdef NDEBUG
         #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
+#endif
         for (int j = 0; j < camera_->canvas_.height(); ++j) {
             for (int i = 0; i < camera_->canvas_.width(); ++i) {
                 vector2f pix_offset{offset(engine), offset(engine)};
@@ -133,13 +148,14 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
 
         switch(objects_[intersected_idx]->material_) {
             case Primitive::Diffuse: {
-                vector3f dir = rng::get_sphere(engine);
-                if (dot(dir, intersection.normal) < 0)
-                    dir = -dir;
+                vector3f dir = random_distributions.sphere_sample(pos, intersection.normal);
+//                if (dot(dir, intersection.normal) < 0)
+//                    dir = -dir;
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
                 auto reflect_inter = intersect(reflect_ray, max_distance);
-                intersection.color += reflect_inter.color * objects_[intersected_idx]->color_ * 2 * dot(dir, intersection.normal);
+                float coeff = M_1_PIf32 / random_distributions.pdf(pos, intersection.normal, dir);
+                intersection.color += objects_[intersected_idx]->color_ * coeff * reflect_inter.color * dot(dir, intersection.normal);
                 break;
             }
             case Primitive::Dielectric: {

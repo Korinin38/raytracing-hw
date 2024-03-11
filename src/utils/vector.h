@@ -95,6 +95,8 @@ vector3f operator*(vector3f v, float t);
 vector3f operator*(float t, vector3f v);
 vector3f operator*(vector3f a, vector3f b);
 vector3f operator/(vector3f a, vector3f b);
+bool operator==(vector3f a, vector3f b);
+bool operator!=(vector3f a, vector3f b);
 
 vector3f pow(vector3f v, float power);
 

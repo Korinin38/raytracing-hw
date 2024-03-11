@@ -18,7 +18,7 @@ public:
     void draw_into(const std::string &filename) const;
 
     camera_uniq_ptr camera_;
-    vector3f bg_color_;
+    vector3f bg_color_{};
     int ray_depth_ = 1;
     int samples_ = 16;
     vector3f ambient_{0.f, 0.f, 0.f};
@@ -28,6 +28,6 @@ public:
     Intersection intersect(Ray r, float max_distance = 1e9, bool no_light = false) const;
 private:
     const float gamma = 1.f / 2.2f;
-    const float step = 1e-4;
     class SceneParser;
+    mutable MixedDistribution random_distributions;
 };
