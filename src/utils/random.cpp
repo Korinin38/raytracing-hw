@@ -177,6 +177,8 @@ void MixedDistribution::add_dist(const random_distribution_sh_ptr& dist) {
 }
 
 vector3f MixedDistribution::sphere_sample(vector3f point, vector3f normal) {
+    if (distributions.empty())
+        return normal;
     int sample = std::floor(uni.sample() * (float)distributions.size());
     if (sample == distributions.size())
         sample -= 1;

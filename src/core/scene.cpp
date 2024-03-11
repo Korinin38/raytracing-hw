@@ -145,13 +145,13 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
     if (no_color || intersected_idx >= objects_.size())
         return intersection;
 
-    std::cout << 1 << std::endl;
+    // std::cout << 1 << std::endl;
     {
         vector3f pos = r.position + r.direction * intersection.distance;
 
         switch(objects_[intersected_idx]->material_) {
             case Primitive::Diffuse: {
-                std::cout << 2 << std::endl;
+                // std::cout << 2 << std::endl;
                 vector3f dir{};
                 float pdf = 0.f;
                 float cos;
@@ -159,18 +159,18 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                 cos = dot(dir, intersection.normal);
                 if (cos <= 0.f)
                     break;
-                std::cout << 3 << std::endl;
+                // std::cout << 3 << std::endl;
                 pdf = random_distributions.pdf(pos, intersection.normal, dir);
-                std::cout << 4 << std::endl;
+                // std::cout << 4 << std::endl;
                 if (pdf <= 0.f || isnanf(pdf))
                     break;
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
                 auto reflect_inter = intersect(reflect_ray, max_distance);
-                std::cout << 5 << std::endl;
+                // std::cout << 5 << std::endl;
                 float coeff = M_1_PIf32 / pdf;
                 intersection.color += objects_[intersected_idx]->color_ * coeff * reflect_inter.color * cos;
-                std::cout << 6 << std::endl;
+                // std::cout << 6 << std::endl;
                 break;
             }
             case Primitive::Dielectric: {
