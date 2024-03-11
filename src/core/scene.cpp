@@ -81,6 +81,7 @@ void Scene::render(ProgressFunc callback) const {
 #endif
         for (int j = 0; j < camera_->canvas_.height(); ++j) {
             for (int i = 0; i < camera_->canvas_.width(); ++i) {
+                std::cout << i << " " << j << std::endl;
                 vector2f pix_offset{offset(engine), offset(engine)};
                 vector2i pix_pos{i, j};
                 Ray r = camera_->cast_in_pixel(pix_pos, pix_offset);
