@@ -2,6 +2,8 @@
 #include "geometry/primitive.h"
 
 #include <cmath>
+// todo: remove
+#include <iostream>
 
 const float step = 1e-4;
 
@@ -19,14 +21,18 @@ RandomDistribution::RandomDistribution() {
     rng = rng::get_generator();
 }
 
-UniformDistribution::UniformDistribution(float min, float max) : dist(min, max), n_d(0, 1) {}
+UniformDistribution::UniformDistribution(float min, float max) : dist(min, max), norm_dist(0, 1) {}
 
 float UniformDistribution::sample() {
     return dist(rng);
 }
 
+float UniformDistribution::norm_sample() {
+    return norm_dist(rng);
+}
+
 vector3f UniformDistribution::sphere_sample(vector3f /*point*/, vector3f normal) {
-    vector3f a{n_d(rng), n_d(rng), n_d(rng)};
+    vector3f a{norm_dist(rng), norm_dist(rng), norm_dist(rng)};
     normalize(a);
     if (dot(a, normal) < 0.f)
         a = -a;
@@ -61,8 +67,8 @@ vector3f LightDistribution::sphere_sample(vector3f point, vector3f normal) {
     switch (primitive->type_) {
         case Primitive::Box: {
             const vector3f &box_size = primitive->param_;
-            vector3f area{box_size.y * box_size.z, box_size.x * box_size.z, box_size.x * box_size.y};
-            float full_area = area[0] + area[1] + area[2];
+            vector3f area{ 4.f * box_size.y * box_size.z, 4.f * box_size.x * box_size.z, 4.f * box_size.x * box_size.y};
+            float full_area =area[0] + area[1] + area[2];
 
             const float sample = (uni_dist.sample() + 1.f) * full_area / 2;
             // choose face based on sample
@@ -74,8 +80,6 @@ vector3f LightDistribution::sphere_sample(vector3f point, vector3f normal) {
             } else if (sample < full_area) {
                 face = 2;
             }
-            if (face == -1)
-                throw std::runtime_error("rassert failed: wrong sample from box primitive (4398726589736)");
 
             const float side = (uni_dist.sample() < 0.f) ? -1.f : 1.f;
 
@@ -89,13 +93,7 @@ vector3f LightDistribution::sphere_sample(vector3f point, vector3f normal) {
         case Primitive::Ellipsoid: {
             const vector3f &ellipsoid_radius = primitive->param_;
             // get point on sphere
-            res = uni_dist.sphere_sample({0, 0, 0}, normal);
-            // gen sphere instead of hemisphere
-            if (uni_dist.sample() < 0)
-                res = -res;
-            last_normal = res;
-            if (std::abs(length(res) - 1.f) > 1e-4)
-                throw std::runtime_error(std::string("Bad normal! 1 !=") + std::to_string(length(res)));
+            res = ::normal(vector3f{uni_dist.norm_sample(), uni_dist.norm_sample(), uni_dist.norm_sample()});
             res *= ellipsoid_radius;
             break;
         }
@@ -103,28 +101,30 @@ vector3f LightDistribution::sphere_sample(vector3f point, vector3f normal) {
         default:
             throw std::runtime_error("rassert failed: light sample from Plane primitive");
     }
-
-    res = primitive->to_global(res);
-    last_direction = ::normal(res - point);
-//    if (pdf(point, normal, last_direction) <= 0.f)
-//        throw std::runtime_error("Wrong light implementation!");
-    return last_direction;
+    res = rotate(res, primitive->rotation_);
+    res += primitive->position_;
+//    res = primitive->to_global(res);
+    return ::normal(res - point);
 }
 
+static float a = 0.f;
+static int a_times = 0;
+
 float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction) {
-    if (dot(normal, direction) < 0)
-        return 0.f;
     float probability[2] = {0, 0};
     Intersection intersection[2];
 
     intersection[0] = primitive->intersect({point, direction});
     if (!intersection[0]) {
-//        throw std::runtime_error("Wrong sample!");
-        int a = 1;
+        return 0.f;
     }
-    intersection[1] = primitive->intersect({point + direction * intersection[0].distance + step, direction});
-    if (intersection[1])
-        intersection[1].distance += intersection[0].distance + step;
+    intersection[1] = primitive->intersect({point + direction * intersection[0].distance + direction * step, direction});
+    if (!intersection[1]) {
+        intersection[1] = intersection[0];
+    } else {
+        intersection[1].distance += intersection[0].distance;
+    }
+
 
     switch (primitive->type_) {
         case Primitive::Box: {
@@ -141,26 +141,16 @@ float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction
                 if (!intersection[i])
                     break;
 
-                vector3f sphere_normal{};
                 // get normal of point of sphere corresponding to the point of ellipsoid
-                if (direction == last_direction) {
-                    sphere_normal = last_normal;
-                } else {
-//                    sphere_normal = last_normal;
-                    vector3f ell_point = rotate((point + direction * intersection[i].distance) - primitive->position_, *primitive->rotation_);
-                    sphere_normal = ::normal(ell_point / ellipsoid_radius);
-//                    sphere_normal = ell_point / ellipsoid_radius;
-//                    if (std::abs(length(sphere_normal) - 1.0) > 1e-3) {
-//                        throw std::runtime_error(std::string("Bad_normal! 1 !=") + std::to_string(length(sphere_normal)));
-//                        int a = 1;
-//                    }
-                }
+                vector3f ell_point = rotate((point + direction * intersection[i].distance) - primitive->position_, *(primitive->rotation_));
+                vector3f sphere_normal = ell_point / ellipsoid_radius;
 
                 float area_squared = 0.f;
                 for (int f = 0; f < 3; ++f) {
+                    const int f0 = (f) % 3;
                     const int f1 = (f + 1) % 3;
                     const int f2 = (f + 2) % 3;
-                    area_squared += sphere_normal[f] * sphere_normal[f]
+                    area_squared += sphere_normal[f0] * sphere_normal[f0]
                                   * ellipsoid_radius[f1] * ellipsoid_radius[f1]
                                   * ellipsoid_radius[f2] * ellipsoid_radius[f2];
                 }
@@ -176,14 +166,9 @@ float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction
 
     float res = 0.f;
     for (int i = 0; i <= 1; ++i) {
-        if (!intersection[i])
-            break;
-        res += probability[i] * (intersection[i].distance * intersection[i].distance) / std::abs(dot(intersection[i].normal, direction));
+        float cos = std::abs(dot(intersection[i].normal, direction));
+        res += std::abs(probability[i] * (intersection[i].distance * intersection[i].distance) / cos);
     }
-    if (res <= 0) {
-        int a = 1;
-    }
-//    return 1.f;
     return res;
 }
 

@@ -60,7 +60,7 @@ Scene::Scene(const std::string &filename) {
 
     random_distributions.add_dist(std::make_shared<CosineWeightedDistribution>());
     // todo: make it back
-//    random_distributions.add_dist(light);
+    random_distributions.add_dist(light);
 //    random_distributions = *light;
 }
 
@@ -148,14 +148,21 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
 
         switch(objects_[intersected_idx]->material_) {
             case Primitive::Diffuse: {
-                vector3f dir = random_distributions.sphere_sample(pos, intersection.normal);
-//                if (dot(dir, intersection.normal) < 0)
-//                    dir = -dir;
+                vector3f dir;
+                float pdf = 0.f;
+                float cos;
+                dir = random_distributions.sphere_sample(pos, intersection.normal);
+                cos = dot(dir, intersection.normal);
+                if (cos <= 0.f)
+                    break;
+                pdf = random_distributions.pdf(pos, intersection.normal, dir);
+                if (pdf <= 0.f)
+                    break;
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
                 auto reflect_inter = intersect(reflect_ray, max_distance);
-                float coeff = M_1_PIf32 / random_distributions.pdf(pos, intersection.normal, dir);
-                intersection.color += objects_[intersected_idx]->color_ * coeff * reflect_inter.color * dot(dir, intersection.normal);
+                float coeff = M_1_PIf32 / pdf;
+                intersection.color += objects_[intersected_idx]->color_ * coeff * reflect_inter.color * cos;
                 break;
             }
             case Primitive::Dielectric: {

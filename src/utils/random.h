@@ -32,11 +32,11 @@ class UniformDistribution : public RandomDistribution {
 public:
     UniformDistribution(float min, float max);
     float sample();
+    float norm_sample();
     vector3f sphere_sample(vector3f point, vector3f normal) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
-private:
     uniform_float_d dist;
-    normal_d n_d;
+    normal_d norm_dist;
 };
 
 class CosineWeightedDistribution : public RandomDistribution {
@@ -57,8 +57,6 @@ public:
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
 private:
     const Primitive *primitive;
-    vector3f last_direction{};
-    vector3f last_normal{};
     UniformDistribution uni_dist;
 };
 
