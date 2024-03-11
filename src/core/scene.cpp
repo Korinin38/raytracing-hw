@@ -67,6 +67,8 @@ Scene::Scene(const std::string &filename) {
 static Engine engine = rng::get_generator();
 
 void Scene::render(ProgressFunc callback) const {
+    if (callback == nullptr)
+        std::cout << "Render launched." << std::endl;
     timer t;
     uniform_float_d offset(-0.5f, 0.5f);
     std::vector<vector3f> sample_canvas;
