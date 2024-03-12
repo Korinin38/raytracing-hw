@@ -36,6 +36,7 @@ struct vector3f {
     float &operator[](int i) { return *(&x + i); }
     const float &operator[](int i) const { return *(&x + i); }
 
+    vector3f add(float t);
     vector3f &operator+=(vector3f b);
     vector3f &operator*=(vector3f b);
     vector3f &operator*=(float b);
@@ -88,7 +89,6 @@ vector3f ch8bit_to_normal(vector3si val);
 float dot(vector3f a, vector3f b);
 vector3f cross(vector3f a, vector3f b);
 
-vector3f operator+(vector3f a, float t);
 vector3f operator+(vector3f a, vector3f b);
 vector3f operator-(vector3f a, vector3f b);
 vector3f operator*(vector3f v, float t);

@@ -164,10 +164,6 @@ vector3f &vector3f::operator+=(vector3f b) {
     return *this;
 }
 
-vector3f operator+(vector3f a, float t) {
-    return {a.x + t, a.y + t, a.z + t};
-}
-
 vector3f operator+(vector3f a, vector3f b) {
     vector3f r = a;
     r += b;
@@ -184,6 +180,10 @@ vector3f &vector3f::operator*=(float b) {
     for (int i = 0; i < 3; ++i)
         (*this)[i] *= b;
     return *this;
+}
+
+vector3f vector3f::add(float t) {
+    return {x + t, y + t, z + t};
 }
 
 vector3f operator-(vector3f a, vector3f b) {
@@ -287,5 +287,5 @@ vector3f aces_tonemap(const vector3f &x) {
     const float c = 2.43f;
     const float d = 0.59f;
     const float e = 0.14f;
-    return saturate((x*(a*x+b))/(x*(c*x+d)+e));
+    return saturate((x*((a*x).add(b)))/(x*((c*x).add(d)).add(e)));
 }
