@@ -66,7 +66,7 @@ vector3f LightDistribution::sphere_sample(vector3f point, vector3f normal) {
     vector3f res{};
     switch (primitive->type_) {
         case Primitive::Box: {
-            const vector3f &box_size = primitive->param_;
+            const auto &box_size = std::get<vector3f>(primitive->param_);
             vector3f area{ 4.f * box_size.y * box_size.z, 4.f * box_size.x * box_size.z, 4.f * box_size.x * box_size.y};
             float full_area =area[0] + area[1] + area[2];
 
@@ -93,12 +93,14 @@ vector3f LightDistribution::sphere_sample(vector3f point, vector3f normal) {
             break;
         }
         case Primitive::Ellipsoid: {
-            const vector3f &ellipsoid_radius = primitive->param_;
+            const auto &ellipsoid_radius = std::get<vector3f>(primitive->param_);
             // get point on sphere
             res = ::normal(vector3f{uni_dist.norm_sample(), uni_dist.norm_sample(), uni_dist.norm_sample()});
             res *= ellipsoid_radius;
             break;
         }
+        case Primitive::Triangle:
+            //todo
         case Primitive::Plane:
         default:
             throw std::runtime_error("rassert failed: light sample from Plane primitive");
@@ -126,14 +128,14 @@ float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction
 
     switch (primitive->type_) {
         case Primitive::Box: {
-            const vector3f &box_size = primitive->param_;
+            const auto &box_size = std::get<vector3f>(primitive->param_);
             float full_area_size = 8 * (box_size[0] * box_size[1] + box_size[1] * box_size[2] + box_size[2] * box_size[0]);
             probability[0] = 1 / full_area_size;
             probability[1] = probability[0];
             break;
         }
         case Primitive::Ellipsoid: {
-            const vector3f &ellipsoid_radius = primitive->param_;
+            const auto &ellipsoid_radius = std::get<vector3f>(primitive->param_);
 
             for (int i = 0; i <= 1; ++i) {
                 if (!intersection[i])
@@ -157,6 +159,8 @@ float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction
             }
             break;
         }
+        case Primitive::Triangle:
+            //todo
         case Primitive::Plane:
         default:
             return 0;

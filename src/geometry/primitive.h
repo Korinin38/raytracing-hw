@@ -5,6 +5,7 @@
 #include <fstream>
 #include <optional>
 #include <memory>
+#include <variant>
 
 class Primitive;
 class Ray;
@@ -25,7 +26,8 @@ public:
     enum GeomType {
         Box,
         Ellipsoid,
-        Plane
+        Plane,
+        Triangle
     };
 
     enum Material {
@@ -37,7 +39,7 @@ public:
     GeomType type_ = Plane;
     Material material_ = Diffuse;
     float ior_ = 1.0;
-    vector3f param_ = {};
+    std::variant<vector3f, std::tuple<vector3f, vector3f, vector3f>> param_ = {};
     vector3f position_ = {};
     vector4f rotation_ = {0, 0, 0,1};
 
@@ -46,7 +48,7 @@ public:
 
     Primitive() = default;
     bool parse(const std::string& line);
-    bool emissive();
+    bool emissive() const;
     [[nodiscard]] Intersection intersect(Ray ray) const;
 
     vector3f to_global(vector3f local) const;

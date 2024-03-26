@@ -26,6 +26,14 @@ bool Primitive::parse(const std::string& line) {
         type_ = Plane;
         param_ = vec3f_from_string(line, cmd.length() + 1);
         return true;
+    } else if (cmd == "TRIANGLE") {
+        type_ = Triangle;
+        vector3f p1, p2, p3;
+        ss >> p1.x >> p1.y >> p1.z;
+        ss >> p2.x >> p2.y >> p2.z;
+        ss >> p3.x >> p3.y >> p3.z;
+        param_ = std::tuple(p1, p2, p3);
+        return true;
     } else if (cmd == "POSITION") {
         position_ = vec3f_from_string(line, cmd.length() + 1);
         return true;
@@ -68,7 +76,7 @@ Intersection Primitive::intersect(Ray ray) const {
 
     switch (type_) {
         case Box: {
-            const vector3f &size_ = param_;
+            const auto &size_ = std::get<vector3f>(param_);
             vector3f t1{};
             vector3f t2{};
             for (int i = 0; i < 3; ++i) {
@@ -118,7 +126,7 @@ Intersection Primitive::intersect(Ray ray) const {
             return intersection;
         }
         case Plane: {
-            const vector3f &normal_ = param_;
+            const auto &normal_ = std::get<vector3f>(param_);
 
             float t = -dot(ray.position, normal_) / dot(ray.direction, normal_);
 
@@ -139,7 +147,7 @@ Intersection Primitive::intersect(Ray ray) const {
             return intersection;
         }
         case Ellipsoid: {
-            const vector3f &radius_ = param_;
+            const auto &radius_ = std::get<vector3f>(param_);
 
             float a, b, c;
             vector3f o_r = ray.position / radius_;
@@ -180,11 +188,14 @@ Intersection Primitive::intersect(Ray ray) const {
 
             return intersection;
         }
+        case Triangle: {
+            //todo
+        }
     }
     throw std::runtime_error("Reached unreachable code");
 }
 
-bool Primitive::emissive() {
+bool Primitive::emissive() const {
     vector3f zero{};
     return (emission_ != zero);
 }
