@@ -42,10 +42,14 @@ int main(int argc, char *argv[]) {
 
     std::cout << std::setprecision(6);
     t.restart();
-//    scene.render(ProgressCallback);
-    scene.render();
 
+#ifdef USE_CALLBACK
+    scene.render(ProgressCallback);
+#else
+    scene.render();
     ProgressCallback(100, &t);
+#endif
+
     scene.draw_into(output);
     std::cout << "Frame drawn into " << output << std::endl;
     return 0;

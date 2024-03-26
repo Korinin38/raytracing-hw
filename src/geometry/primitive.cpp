@@ -181,6 +181,7 @@ Intersection Primitive::intersect(Ray ray) const {
             return intersection;
         }
     }
+    throw std::runtime_error("Reached unreachable code");
 }
 
 bool Primitive::emissive() {

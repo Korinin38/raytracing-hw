@@ -74,12 +74,16 @@ void Scene::render(ProgressFunc callback) const {
         callback(0, &t);
     else
         std::cout << "Render launched." << std::endl;
-    for (int s = 0; s < samples_; ++s) {
+
+    const unsigned int canvas_size = camera_->canvas_.height() * camera_->canvas_.width();
+    unsigned int progress = 0;
+
 #ifdef NDEBUG
-        #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
+    #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
 #endif
-        for (int j = 0; j < camera_->canvas_.height(); ++j) {
-            for (int i = 0; i < camera_->canvas_.width(); ++i) {
+    for (int j = 0; j < camera_->canvas_.height(); ++j) {
+        for (int i = 0; i < camera_->canvas_.width(); ++i) {
+            for (int s = 0; s < samples_; ++s) {
                 vector2f pix_offset{offset(engine), offset(engine)};
                 vector2i pix_pos{i, j};
                 Ray r = camera_->cast_in_pixel(pix_pos, pix_offset);
@@ -91,9 +95,14 @@ void Scene::render(ProgressFunc callback) const {
                 else
                     sample_canvas[j * camera_->canvas_.width() + i] += intersection.color;
             }
+
+            if (callback)
+            #pragma omp critical
+            {
+                progress += 1;
+                callback(std::floor(100 * progress / (double)canvas_size), &t);
+            }
         }
-        if (callback)
-            callback((s + 1) * 100 / samples_, &t);
     }
 
     #pragma omp parallel for default(none) shared(sample_canvas) collapse(2)

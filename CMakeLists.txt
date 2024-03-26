@@ -7,6 +7,8 @@ include_directories(${CMAKE_SOURCE_DIR}/src )
 
 find_package(OpenMP)
 
+option(USE_CALLBACK "display progress and time" OFF)
+
 add_executable(solution
         src/main.cpp
         src/core/scene.h
@@ -26,5 +28,9 @@ add_executable(solution
         src/utils/random.h
         src/utils/vector.cpp
         src/utils/random.cpp)
+
+if (USE_CALLBACK)
+    target_compile_definitions(solution PRIVATE "USE_CALLBACK")
+endif()
 
 target_link_libraries(solution PRIVATE OpenMP::OpenMP_CXX)
