@@ -25,7 +25,7 @@ public:
     virtual float pdf(vector3f point, vector3f normal, vector3f direction) = 0;
 protected:
     RandomDistribution();
-    Engine rng;
+    Engine rng_;
 };
 
 class UniformDistribution : public RandomDistribution {
@@ -45,7 +45,7 @@ public:
     vector3f sphere_sample(vector3f point, vector3f normal) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
 private:
-    UniformDistribution uni_dist;
+    UniformDistribution uni_dist_;
 };
 
 class Primitive;
@@ -56,8 +56,8 @@ public:
     vector3f sphere_sample(vector3f point, vector3f normal) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
 private:
-    const Primitive *primitive;
-    UniformDistribution uni_dist;
+    const Primitive *primitive_;
+    UniformDistribution uni_dist_;
 };
 
 class MixedDistribution : public RandomDistribution {
@@ -68,8 +68,8 @@ public:
     void add_dist(const random_distribution_sh_ptr& dist);
     size_t get_size() const;
 private:
-    std::vector<random_distribution_sh_ptr> distributions;
-    UniformDistribution uni;
+    std::vector<random_distribution_sh_ptr> distributions_;
+    UniformDistribution uni_;
 };
 
 namespace rng {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <cmath>
 
 #pragma pack(push, 1)
 struct vector2i {
@@ -53,63 +54,303 @@ struct vector4f {
 };
 #pragma pack(pop)
 
-extern int int_from_string(const std::string &s, size_t pos, size_t *idx = nullptr);
-extern float float_from_string(const std::string &s, size_t pos, size_t *idx = nullptr);
+inline int int_from_string(const std::string &s, size_t pos, size_t *idx = nullptr) {
+    size_t end_pos = s.find(' ', pos);
+    std::string raw_str = s.substr(pos, end_pos - pos);
+
+    return std::stoi(raw_str, idx);
+}
+
+inline float float_from_string(const std::string &s, size_t pos, size_t *idx = nullptr) {
+    size_t end_pos = s.find(' ', pos);
+    std::string raw_str = s.substr(pos, end_pos - pos);
+
+    return std::stof(raw_str, idx);
+}
+
 // extracts ints from string of format "X Y"
-extern vector2i vec2i_from_string(const std::string &s, size_t pos = 0);
+inline vector2i vec2i_from_string(const std::string &s, size_t pos = 0) {
+    vector2i vec{};
+    for (int i = 0; i < 2; ++i) {
+        size_t new_pos;
+        vec[i] = int_from_string(s, pos, &new_pos);
+        pos += new_pos + 1;
+    }
+    return vec;
+}
+
 // extracts ints from string of format "X Y Z"
-extern vector3si vec3si_from_string(const std::string &s, size_t pos = 0);
+inline vector3si vec3si_from_string(const std::string &s, size_t pos = 0) {
+    vector3si vec{};
+    for (int i = 0; i < 3; ++i) {
+        size_t new_pos;
+        vec[i] = int_from_string(s, pos, &new_pos);
+        pos += new_pos + 1;
+    }
+    return vec;
+}
+
 // extracts floats from string of format "X.XXX Y.YYY"
-extern vector2f vec2f_from_string(const std::string &s, size_t pos = 0);
+inline vector2f vec2f_from_string(const std::string &s, size_t pos = 0) {
+    vector2f vec{};
+    for (int i = 0; i < 2; ++i) {
+        size_t new_pos;
+        vec[i] = float_from_string(s, pos, &new_pos);
+        pos += new_pos + 1;
+    }
+    return vec;
+}
+
 // extracts floats from string of format "X.XXX Y.YYY Z.ZZZ"
-extern vector3f vec3f_from_string(const std::string &s, size_t pos = 0);
+inline vector3f vec3f_from_string(const std::string &s, size_t pos = 0) {
+    vector3f vec{};
+    for (int i = 0; i < 3; ++i) {
+        size_t new_pos;
+        vec[i] = float_from_string(s, pos, &new_pos);
+        pos += new_pos + 1;
+    }
+    return vec;
+}
+
 // extracts floats from string of format "X.XXX Y.YYY Z.ZZZ W.WWW"
-extern vector4f vec4f_from_string(const std::string &s, size_t pos = 0);
+inline vector4f vec4f_from_string(const std::string &s, size_t pos = 0) {
+    vector4f vec{};
+    for (int i = 0; i < 4; ++i) {
+        size_t new_pos;
+        vec[i] = float_from_string(s, pos, &new_pos);
+        pos += new_pos + 1;
 
-float length(vector2f v);
-float length(vector3f v);
-float length(vector4f v);
+    }
+    return vec;
+}
 
-[[nodiscard]] vector2f normal(vector2f v);
-[[nodiscard]] vector3f normal(vector3f v);
-[[nodiscard]] vector4f normal(vector4f v);
+inline float length(vector2f v) {
+    float mod = 0.f;
+    for (int i = 0; i < 2; ++i) {
+        mod += v[i] * v[i];
+    }
+    return std::sqrt(mod);
+}
 
-void normalize(vector2f &v);
-void normalize(vector3f &v);
-void normalize(vector4f &v);
+inline float length(vector3f v) {
+    float mod = 0.f;
+    for (int i = 0; i < 3; ++i) {
+        mod += v[i] * v[i];
+    }
+    return std::sqrt(mod);
+}
 
-// translation from [0.0, 1.0] to [0, 255]
-uint8_t normal_to_ch8bit(float val);
-vector3si normal_to_ch8bit(vector3f val);
+inline float length(vector4f v) {
+    float mod = 0.f;
+    for (int i = 0; i < 4; ++i) {
+        mod += v[i] * v[i];
+    }
+    return std::sqrt(mod);
+}
 
-// translation from [0, 255] to [0.0, 1.0]
-float ch8bit_to_normal(int val);
-vector3f ch8bit_to_normal(vector3si val);
+[[nodiscard]]
+inline vector2f normal(vector2f v) {
+    float mod = length(v);
+    mod = 1.f / mod;
+    return {v.x * mod, v.y * mod};
+}
 
-float dot(vector3f a, vector3f b);
-vector3f cross(vector3f a, vector3f b);
+[[nodiscard]]
+inline vector3f normal(vector3f v) {
+    float mod = length(v);
+    mod = 1.f / mod;
+    return {v.x * mod, v.y * mod, v.z * mod};
+}
 
-vector3f operator+(vector3f a, vector3f b);
-vector3f operator-(vector3f a, vector3f b);
-vector3f operator*(vector3f v, float t);
-vector3f operator*(float t, vector3f v);
-vector3f operator*(vector3f a, vector3f b);
-vector3f operator/(vector3f a, vector3f b);
-bool operator==(vector3f a, vector3f b);
-bool operator!=(vector3f a, vector3f b);
+[[nodiscard]]
+inline vector4f normal(vector4f v) {
+    float mod = length(v);
+    mod = 1.f / mod;
+    return {v.x * mod, v.y * mod, v.z * mod, v.w * mod};
+}
 
-vector3f pow(vector3f v, float power);
+inline void normalize(vector2f &v) {
+    float mod = length(v);
+    mod = 1.f / mod;
+    for (int i = 0; i < 2; ++i) {
+        v[i] *= mod;
+    }
+}
 
-vector3f operator-(vector3f v);
-// conjugate
-vector4f operator*(vector4f q);
+inline void normalize(vector3f &v) {
+    float mod = length(v);
+    mod = 1.f / mod;
+    for (int i = 0; i < 3; ++i) {
+        v[i] *= mod;
+    }
+}
 
-vector3f rotate(vector3f v, vector4f q);
-
-vector3f rotate(vector3f v, vector3f axis, float angle);
+inline void normalize(vector4f &v) {
+    float mod = length(v);
+    mod = 1.f / mod;
+    for (int i = 0; i < 4; ++i) {
+        v[i] *= mod;
+    }
+}
 
 template<class T>
-T clamp(T v, T min, T max);
+inline T clamp(T v, T min, T max) {
+    return std::max(std::min(v, max), min);
+}
 
-vector3f saturate(vector3f const & color);
-vector3f aces_tonemap(vector3f const & x);
+template<>
+inline vector3f clamp<vector3f>(vector3f v, vector3f min, vector3f max) {
+    vector3f res{};
+    for (int i = 0; i < 3; ++i) {
+        res[i] = clamp(v[i], min[i], max[i]);
+    }
+    return res;
+}
+
+// translation from [0.0, 1.0] to [0, 255]
+inline uint8_t normal_to_ch8bit(float val) {
+    return (uint8_t) std::round(clamp(val * 255, 0.f, 255.f));
+}
+
+// translation from [0.0, 1.0] to [0, 255]
+inline vector3si normal_to_ch8bit(vector3f val) {
+    vector3si result{};
+    for (int i = 0; i < 3; ++i) {
+        result[i] = normal_to_ch8bit(val[i]);
+    }
+    return result;
+}
+
+// translation from [0, 255] to [0.0, 1.0]
+inline float ch8bit_to_normal(int val) {
+    return (float) val / 255.f;
+}
+
+// translation from [0, 255] to [0.0, 1.0]
+inline vector3f ch8bit_to_normal(vector3si val) {
+    vector3f result{};
+    for (int i = 0; i < 3; ++i) {
+        result[i] = ch8bit_to_normal(val[i]);
+    }
+    return result;
+}
+
+inline vector3f operator-(vector3f v) {
+    return {-v.x, -v.y, -v.z};
+}
+
+// conjugate
+inline vector4f operator*(vector4f q) {
+    return {-q.x, -q.y, -q.z, q.w};
+}
+
+inline vector3f &vector3f::operator+=(vector3f b) {
+    for (int i = 0; i < 3; ++i)
+        (*this)[i] += b[i];
+    return *this;
+}
+
+inline vector3f operator+(vector3f a, vector3f b) {
+    vector3f r = a;
+    r += b;
+    return r;
+}
+
+inline vector3f &vector3f::operator*=(vector3f b) {
+    for (int i = 0; i < 3; ++i)
+        (*this)[i] *= b[i];
+    return *this;
+}
+
+inline vector3f &vector3f::operator*=(float b) {
+    for (int i = 0; i < 3; ++i)
+        (*this)[i] *= b;
+    return *this;
+}
+
+inline vector3f vector3f::add(float t) {
+    return {x + t, y + t, z + t};
+}
+
+inline vector3f operator-(vector3f a, vector3f b) {
+    return a + (-b);
+}
+
+inline vector3f operator*(vector3f v, float t) {
+    vector3f r = v;
+    r *= t;
+    return r;
+}
+
+inline vector3f operator*(float t, vector3f v) {
+    return v * t;
+}
+
+inline vector3f operator*(vector3f a, vector3f b) {
+    vector3f r = a;
+    r *= b;
+    return r;
+}
+
+inline vector3f operator/(vector3f a, vector3f b) {
+    vector3f result{};
+    for (int i = 0; i < 3; ++i)
+        result[i] = a[i] / b[i];
+    return result;
+}
+
+inline bool operator==(vector3f a, vector3f b) {
+    return (a[0] == b[0] && a[1] == b[1] && a[2] == b[2]);
+}
+
+inline bool operator!=(vector3f a, vector3f b) {
+    return !(a == b);
+}
+
+inline vector3f pow(vector3f v, float power) {
+    return {std::pow(v.x, power), std::pow(v.y, power), std::pow(v.z, power)};
+}
+
+inline float dot(vector3f a, vector3f b) {
+    float s = 0.f;
+    for (int i = 0; i < 3; ++i)
+        s += a[i] * b[i];
+    return s;
+}
+
+inline vector3f cross(vector3f a, vector3f b) {
+    return {
+            a[1] * b[2] - b[1] * a[2],
+            a[2] * b[0] - b[2] * a[0],
+            a[0] * b[1] - b[0] * a[1]
+    };
+}
+
+inline vector3f rotate(vector3f v, vector4f q) {
+    vector3f u{q.x, q.y, q.z};
+    float s = q.w;
+
+    return 2.f * dot(u, v) * u
+           + (s * s - dot(u, u)) * v
+           + 2.f * s * cross(u, v);
+}
+
+inline vector3f rotate(vector3f v, vector3f axis, float angle) {
+    float sin = std::sin(angle) / 2;
+    axis = axis * sin;
+    return rotate(v, {axis.x, axis.y, axis.z, std::cos(angle / 2)});
+}
+
+
+inline vector3f saturate(const vector3f &color) {
+    return clamp(color, {0.f, 0.f, 0.f}, {1.f, 1.f, 1.f});
+}
+
+inline vector3f aces_tonemap(const vector3f &x) {
+    const float a = 2.51f;
+    const float b = 0.03f;
+    const float c = 2.43f;
+    const float d = 0.59f;
+    const float e = 0.14f;
+    return saturate((x * ((a * x).add(b))) / (x * ((c * x).add(d)).add(e)));
+}

@@ -15,19 +15,19 @@ bool Primitive::parse(const std::string& line) {
     ss >> cmd;
 
     if (cmd == "BOX") {
-        type_ = Box;
+		type = Box;
         param_ = vec3f_from_string(line, cmd.length() + 1);
         return true;
     } else if (cmd == "ELLIPSOID") {
-        type_ = Ellipsoid;
+		type = Ellipsoid;
         param_ = vec3f_from_string(line, cmd.length() + 1);
         return true;
     } else if (cmd == "PLANE") {
-        type_ = Plane;
+		type = Plane;
         param_ = vec3f_from_string(line, cmd.length() + 1);
         return true;
     } else if (cmd == "TRIANGLE") {
-        type_ = Triangle;
+		type = Triangle;
         vector3f p1, p2, p3;
         ss >> p1.x >> p1.y >> p1.z;
         ss >> p2.x >> p2.y >> p2.z;
@@ -35,36 +35,35 @@ bool Primitive::parse(const std::string& line) {
         param_ = std::tuple(p1, p2, p3);
         return true;
     } else if (cmd == "POSITION") {
-        position_ = vec3f_from_string(line, cmd.length() + 1);
+		position = vec3f_from_string(line, cmd.length() + 1);
         return true;
     } else if (cmd == "ROTATION") {
-        rotation_ = normal(vec4f_from_string(line, cmd.length() + 1));
+		rotation = normal(vec4f_from_string(line, cmd.length() + 1));
         return true;
     } else if (cmd == "COLOR") {
-        color_ = vec3f_from_string(line, cmd.length() + 1);
+		color = vec3f_from_string(line, cmd.length() + 1);
         return true;
     } else if (cmd == "EMISSION") {
-        emission_ = vec3f_from_string(line, cmd.length() + 1);
+		emission = vec3f_from_string(line, cmd.length() + 1);
         return true;
     } else if (cmd == "METALLIC") {
-        material_ = Metallic;
+		material = Metallic;
         return true;
     } else if (cmd == "DIELECTRIC") {
-        material_ = Dielectric;
+		material = Dielectric;
         return true;
     } else if (cmd == "IOR") {
-        ior_ = float_from_string(line, cmd.length() + 1);
+		ior = float_from_string(line, cmd.length() + 1);
         return true;
     }
     return false;
 }
 
-void Primitive::translateRay(Ray &ray) const {
-    for (int i = 0; i < 3; ++i)
-        ray.position[i] -= position_[i];
+void Primitive::transformRay(Ray &ray) const {
+	ray.position = ray.position - position;
 
-    ray.position = rotate(ray.position, *rotation_);
-    ray.direction = rotate(ray.direction, *rotation_);
+    ray.position = rotate(ray.position, *rotation);
+    ray.direction = rotate(ray.direction, *rotation);
 }
 
 Ray::Ray(vector3f p, vector3f d) : position(p), direction(d) {
@@ -72,9 +71,9 @@ Ray::Ray(vector3f p, vector3f d) : position(p), direction(d) {
 }
 
 Intersection Primitive::intersect(Ray ray) const {
-    translateRay(ray);
+	transformRay(ray);
 
-    switch (type_) {
+    switch (type) {
         case Box: {
             const auto &size_ = std::get<vector3f>(param_);
             vector3f t1{};
@@ -94,7 +93,7 @@ Intersection Primitive::intersect(Ray ray) const {
             Intersection intersection;
             intersection.successful = true;
             intersection.distance = t1_max;
-            intersection.color = color_;
+            intersection.color = color;
             if (t1_max < 0) {
                 intersection.inside = true;
                 intersection.distance = t2_min;
@@ -121,7 +120,7 @@ Intersection Primitive::intersect(Ray ray) const {
                 if (intersection.inside)
                     intersection.normal = -intersection.normal;
 
-                intersection.normal = rotate(intersection.normal, rotation_);
+                intersection.normal = rotate(intersection.normal, rotation);
             }
             return intersection;
         }
@@ -136,8 +135,8 @@ Intersection Primitive::intersect(Ray ray) const {
             Intersection intersection;
 
             intersection.successful = true;
-            intersection.color = color_;
-            intersection.normal = rotate(normal_, rotation_);
+            intersection.color = color;
+            intersection.normal = rotate(normal_, rotation);
             intersection.distance = t;
             if (dot(ray.direction, normal_) > 0) {
                 intersection.inside = true;
@@ -169,7 +168,7 @@ Intersection Primitive::intersect(Ray ray) const {
 
             Intersection intersection;
             intersection.successful = true;
-            intersection.color = color_;
+            intersection.color = color;
             intersection.distance = t1;
 
             if (t1 < 0) {
@@ -181,7 +180,7 @@ Intersection Primitive::intersect(Ray ray) const {
             {
                 vector3f intersection_point = ray.position + intersection.distance * ray.direction;
                 intersection.normal = normal(intersection_point / (radius_ * radius_));
-                intersection.normal = rotate(intersection.normal, rotation_);
+                intersection.normal = rotate(intersection.normal, rotation);
                 if (intersection.inside)
                     intersection.normal = -intersection.normal;
             }
@@ -197,13 +196,13 @@ Intersection Primitive::intersect(Ray ray) const {
 
 bool Primitive::emissive() const {
     vector3f zero{};
-    return (emission_ != zero);
+    return (emission != zero);
 }
 
 vector3f Primitive::to_global(vector3f local) const {
-    return rotate(local, rotation_) + position_;
+    return rotate(local, rotation) + position;
 }
 
 vector3f Primitive::to_local(vector3f global) const {
-    return rotate(global - position_, *rotation_);
+    return rotate(global - position, *rotation);
 }

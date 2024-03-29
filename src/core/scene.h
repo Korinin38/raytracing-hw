@@ -10,24 +10,24 @@
 
 typedef bool (*ProgressFunc)(int progress, void *userData);
 
-class Scene {
+struct Scene {
 public:
     Scene(const std::string &filename);
 
     void render(ProgressFunc = nullptr) const;
     void draw_into(const std::string &filename) const;
 
-    camera_uniq_ptr camera_;
-    vector3f bg_color_{};
-    int ray_depth_ = 1;
-    int samples_ = 16;
-    vector3f ambient_{0.f, 0.f, 0.f};
-    std::vector<primitive_sh_ptr> objects_;
-    std::vector<light_source_sh_ptr> light_;
+    camera_uniq_ptr camera;
+    vector3f bg_color{};
+    int ray_depth = 1;
+    int samples = 16;
+    vector3f ambient{0.f, 0.f, 0.f};
+    std::vector<primitive_sh_ptr> objects;
+    std::vector<light_source_sh_ptr> light;
 
     Intersection intersect(Ray r, float max_distance = 1e9, bool no_light = false) const;
 private:
-    const float gamma = 1.f / 2.2f;
+    const float gamma_ = 1.f / 2.2f;
     class SceneParser;
-    mutable MixedDistribution random_distributions;
+    mutable MixedDistribution random_distributions_;
 };

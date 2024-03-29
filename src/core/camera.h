@@ -12,9 +12,9 @@ typedef std::unique_ptr<Camera> camera_uniq_ptr;
 
 class Camera {
 public:
-    Camera(vector2i size, vector3f position, vector3f axes[3], float fov_x);
+    Camera(vector2i size, vector3f position, const vector3f (&axes)[3], float fov_x);
 
-    Canvas canvas_;
+    Canvas canvas;
 
     vector2i get_canvas_size() const;
 

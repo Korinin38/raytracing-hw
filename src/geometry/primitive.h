@@ -7,8 +7,8 @@
 #include <memory>
 #include <variant>
 
-class Primitive;
-class Ray;
+struct Primitive;
+struct Ray;
 
 typedef std::shared_ptr<Primitive> primitive_sh_ptr;
 
@@ -21,7 +21,7 @@ typedef struct {
     operator bool() const;
 } Intersection;
 
-class Primitive {
+struct Primitive {
 public:
     enum GeomType {
         Box,
@@ -36,15 +36,15 @@ public:
         Metallic
     };
 
-    GeomType type_ = Plane;
-    Material material_ = Diffuse;
-    float ior_ = 1.0;
+    GeomType type = Plane;
+    Material material = Diffuse;
+    float ior = 1.0;
     std::variant<vector3f, std::tuple<vector3f, vector3f, vector3f>> param_ = {};
-    vector3f position_ = {};
-    vector4f rotation_ = {0, 0, 0,1};
+    vector3f position = {};
+    vector4f rotation = {0, 0, 0, 1};
 
-    vector3f color_ = {0, 0, 0};
-    vector3f emission_ = {0, 0, 0};
+    vector3f color = {0, 0, 0};
+    vector3f emission = {0, 0, 0};
 
     Primitive() = default;
     bool parse(const std::string& line);
@@ -55,10 +55,10 @@ public:
     vector3f to_local(vector3f global) const;
 protected:
     // shift and rotate Ray to make itself behave like axis-aligned, in origin
-    void translateRay(Ray &ray) const;
+    void transformRay(Ray &ray) const;
 };
 
-class Ray {
+struct Ray {
 public:
     Ray(vector3f p, vector3f d);
     vector3f position;

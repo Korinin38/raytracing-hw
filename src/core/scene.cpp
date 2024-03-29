@@ -53,14 +53,14 @@ Scene::Scene(const std::string &filename) {
     (SceneParser(*this, filename));
 
     mixed_distribution_sh_ptr light = std::make_shared<MixedDistribution>();
-    for (const auto& o : objects_) {
-        if (o->emissive() && o->type_ != Primitive::Plane)
+    for (const auto& o : objects) {
+        if (o->emissive() && o->type != Primitive::Plane)
             light->add_dist(std::make_shared<LightDistribution>(*o));
     }
 
-    random_distributions.add_dist(std::make_shared<CosineWeightedDistribution>());
+    random_distributions_.add_dist(std::make_shared<CosineWeightedDistribution>());
     if (light->get_size() > 0)
-        random_distributions.add_dist(light);
+        random_distributions_.add_dist(light);
 }
 
 static Engine engine = rng::get_generator();
@@ -69,31 +69,31 @@ void Scene::render(ProgressFunc callback) const {
     timer t;
     uniform_float_d offset(-0.5f, 0.5f);
     std::vector<vector3f> sample_canvas;
-    sample_canvas.reserve(camera_->canvas_.height() * camera_->canvas_.width());
+    sample_canvas.reserve(camera->canvas.height() * camera->canvas.width());
     if (callback)
         callback(0, &t);
     else
         std::cout << "Render launched." << std::endl;
 
-    const unsigned int canvas_size = camera_->canvas_.height() * camera_->canvas_.width();
+    const unsigned int canvas_size = camera->canvas.height() * camera->canvas.width();
     unsigned int progress = 0;
 
 #ifdef NDEBUG
     #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
 #endif
-    for (int j = 0; j < camera_->canvas_.height(); ++j) {
-        for (int i = 0; i < camera_->canvas_.width(); ++i) {
-            for (int s = 0; s < samples_; ++s) {
+    for (int j = 0; j < camera->canvas.height(); ++j) {
+        for (int i = 0; i < camera->canvas.width(); ++i) {
+            for (int s = 0; s < samples; ++s) {
                 vector2f pix_offset{offset(engine), offset(engine)};
                 vector2i pix_pos{i, j};
-                Ray r = camera_->cast_in_pixel(pix_pos, pix_offset);
-                r.power = ray_depth_;
+                Ray r = camera->cast_in_pixel(pix_pos, pix_offset);
+                r.power = ray_depth;
 
                 auto intersection = intersect(r);
                 if (s == 0)
-                    sample_canvas[j * camera_->canvas_.width() + i] = intersection.color;
+                    sample_canvas[j * camera->canvas.width() + i] = intersection.color;
                 else
-                    sample_canvas[j * camera_->canvas_.width() + i] += intersection.color;
+                    sample_canvas[j * camera->canvas.width() + i] += intersection.color;
             }
 
             if (callback)
@@ -106,19 +106,19 @@ void Scene::render(ProgressFunc callback) const {
     }
 
     #pragma omp parallel for default(none) shared(sample_canvas) collapse(2)
-    for (int j = 0; j < camera_->canvas_.height(); ++j) {
-        for (int i = 0; i < camera_->canvas_.width(); ++i) {
-            vector3f color = sample_canvas[j * camera_->canvas_.width() + i];
-            color *= (1.f / (float)samples_);
+    for (int j = 0; j < camera->canvas.height(); ++j) {
+        for (int i = 0; i < camera->canvas.width(); ++i) {
+            vector3f color = sample_canvas[j * camera->canvas.width() + i];
+            color *= (1.f / (float)samples);
             color = aces_tonemap(color);
-            color = pow(color, gamma);
-            camera_->canvas_.set({i, j}, normal_to_ch8bit(color));
+            color = pow(color, gamma_);
+            camera->canvas.set({i, j}, normal_to_ch8bit(color));
         }
     }
 }
 
 void Scene::draw_into(const std::string &filename) const {
-    camera_->canvas_.write_to(filename);
+    camera->canvas.write_to(filename);
 }
 
 Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
@@ -129,13 +129,13 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
     Intersection intersection;
     intersection.successful = false;
     intersection.distance = max_distance;
-    intersection.color = bg_color_;
+    intersection.color = bg_color;
     intersection.inside = false;
 
     int intersected_idx = -1;
 
-    for (int i = 0; i < objects_.size(); ++i) {
-        auto intersect_obj = objects_[i]->intersect(r);
+    for (int i = 0; i < objects.size(); ++i) {
+        auto intersect_obj = objects[i]->intersect(r);
         if (!intersect_obj) continue;
 
         if (intersect_obj.distance > intersection.distance) {
@@ -146,39 +146,39 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
         intersection.inside = intersect_obj.inside;
         intersection.distance = intersect_obj.distance;
         intersection.normal = intersect_obj.normal;
-        intersection.color = objects_[i]->emission_;
+        intersection.color = objects[i]->emission;
     }
 
     // simple check with no light or color
-    if (no_color || intersected_idx >= objects_.size())
+    if (no_color || intersected_idx >= objects.size())
         return intersection;
 
     {
         vector3f pos = r.position + r.direction * intersection.distance;
 
-        switch(objects_[intersected_idx]->material_) {
+        switch(objects[intersected_idx]->material) {
             case Primitive::Diffuse: {
                 vector3f dir{};
                 float pdf = 0.f;
                 float cos;
-                dir = random_distributions.sphere_sample(pos, intersection.normal);
+                dir = random_distributions_.sphere_sample(pos, intersection.normal);
                 cos = dot(dir, intersection.normal);
                 if (cos <= 0.f)
                     break;
-                pdf = random_distributions.pdf(pos, intersection.normal, dir);
+                pdf = random_distributions_.pdf(pos, intersection.normal, dir);
                 if (pdf <= 0.f || isnanf(pdf))
                     break;
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
                 auto reflect_inter = intersect(reflect_ray, max_distance);
                 float coeff = M_1_PIf32 / pdf;
-                intersection.color += objects_[intersected_idx]->color_ * coeff * reflect_inter.color * cos;
+                intersection.color += objects[intersected_idx]->color * coeff * reflect_inter.color * cos;
                 break;
             }
             case Primitive::Dielectric: {
                 float cos_in = -dot(intersection.normal, r.direction);
                 float eta_1 = 1.f;
-                float eta_2 = objects_[intersected_idx]->ior_;
+                float eta_2 = objects[intersected_idx]->ior;
                 if (intersection.inside)
                     std::swap(eta_1, eta_2);
                 float refractive_index = eta_1 / eta_2;
@@ -220,9 +220,9 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                     if (refract_inter) {
                         refract_color = refract_inter.color;
                         if (!intersection.inside)
-                            refract_color *= objects_[intersected_idx]->color_;
+                            refract_color *= objects[intersected_idx]->color;
                     } else {
-                        refract_color = bg_color_;
+                        refract_color = bg_color;
                     }
                     intersection.color += refract_color;
                 }
@@ -234,7 +234,7 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
                 auto reflect_inter = intersect(reflect_ray, max_distance);
-                intersection.color += objects_[intersected_idx]->color_ * reflect_inter.color;
+                intersection.color += objects[intersected_idx]->color * reflect_inter.color;
                 break;
             }
         }
@@ -268,9 +268,9 @@ Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
         parse_stages |= stage;
         switch (stage) {
             case UNKNOWN:
-                if (!scene.objects_.empty() && scene.objects_.back()->parse(line))
+                if (!scene.objects.empty() && scene.objects.back()->parse(line))
                     break;
-                if (!scene.light_.empty() && scene.light_.back()->parse(line))
+                if (!scene.light.empty() && scene.light.back()->parse(line))
                     break;
 
                 std::cout << "Warning: unknown command: " << cmd << std::endl;
@@ -281,7 +281,7 @@ Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
                 break;
             case BG_COLOR:
                 parse_stages |= BG_COLOR;
-                scene.bg_color_ = vec3f_from_string(line, cmd.length() + 1);
+                scene.bg_color = vec3f_from_string(line, cmd.length() + 1);
                 break;
             case CAMERA_POSITION:
                 parse_stages |= CAMERA_POSITION;
@@ -304,19 +304,19 @@ Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
                 cam_fov_x = float_from_string(line, cmd.length() + 1);
                 break;
             case AMBIENT_LIGHT:
-                scene.ambient_ = vec3f_from_string(line, cmd.length() + 1);
+                scene.ambient = vec3f_from_string(line, cmd.length() + 1);
                 break;
             case RAY_DEPTH:
-                scene.ray_depth_ = int_from_string(line, cmd.length() + 1);
+                scene.ray_depth = int_from_string(line, cmd.length() + 1);
                 break;
             case SAMPLES:
-                scene.samples_ = int_from_string(line, cmd.length() + 1);
+                scene.samples = int_from_string(line, cmd.length() + 1);
                 break;
             case NEW_PRIMITIVE:
-                scene.objects_.emplace_back(new Primitive());
+                scene.objects.emplace_back(new Primitive());
                 break;
             case NEW_LIGHT:
-                scene.light_.emplace_back(new LightSource());
+                scene.light.emplace_back(new LightSource());
                 break;
             case READY:
                 break;
@@ -325,5 +325,5 @@ Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
     if (parse_stages != ParseStage::READY) {
         throw std::runtime_error("Wrong file format: " + filename);
     }
-    scene.camera_ = std::make_unique<Camera>(cam_canvas, cam_position, cam_axes, cam_fov_x);
+    scene.camera = std::make_unique<Camera>(cam_canvas, cam_position, cam_axes, cam_fov_x);
 }
