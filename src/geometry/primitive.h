@@ -12,7 +12,7 @@ struct Ray;
 
 typedef std::shared_ptr<Primitive> primitive_sh_ptr;
 
-typedef struct {
+typedef struct Intersection {
     bool successful = false;
     float distance;
     vector3f normal;
@@ -39,7 +39,7 @@ public:
     GeomType type = Plane;
     Material material = Diffuse;
     float ior = 1.0;
-    std::variant<vector3f, std::tuple<vector3f, vector3f, vector3f>> param_ = {};
+    std::variant<vector3f, std::array<vector3f, 3>> param_ = {};
     vector3f position = {};
     vector4f rotation = {0, 0, 0, 1};
 
@@ -53,6 +53,13 @@ public:
 
     vector3f to_global(vector3f local) const;
     vector3f to_local(vector3f global) const;
+
+    struct CalculationCache {
+        vector3f triangle_normal{};
+        float triangle_area = 0.f;
+        vector3f box_inv_size{};
+    };
+    mutable CalculationCache cache;
 protected:
     // shift and rotate Ray to make itself behave like axis-aligned, in origin
     void transformRay(Ray &ray) const;
@@ -61,7 +68,7 @@ protected:
 struct Ray {
 public:
     Ray(vector3f p, vector3f d);
-    vector3f position;
+    vector3f origin;
     vector3f direction;
 
     // amount of jumps possible

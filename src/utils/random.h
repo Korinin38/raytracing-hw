@@ -20,59 +20,51 @@ typedef std::shared_ptr<MixedDistribution> mixed_distribution_sh_ptr;
 class RandomDistribution {
 public:
     // get direction in a hemisphere defined by normal
-    virtual vector3f sphere_sample(vector3f point, vector3f normal) = 0;
+    virtual vector3f sphere_sample(vector3f point, vector3f normal, Engine &rng) = 0;
     // get pdf of direction that we got by sphere_sample
     virtual float pdf(vector3f point, vector3f normal, vector3f direction) = 0;
-protected:
-    RandomDistribution();
-    Engine rng_;
 };
 
 class UniformDistribution : public RandomDistribution {
 public:
-    UniformDistribution(float min, float max);
-    float sample();
-    float norm_sample();
-    vector3f sphere_sample(vector3f point, vector3f normal) override;
+    static float sample(Engine &rng);
+    static float norm_sample(Engine &rng);
+    static vector3f uni_sphere_sample(vector3f point, vector3f normal, Engine &rng);
+    vector3f sphere_sample(vector3f point, vector3f normal, Engine &rng) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
-    uniform_float_d dist;
-    normal_d norm_dist;
 };
 
 class CosineWeightedDistribution : public RandomDistribution {
 public:
     CosineWeightedDistribution();
-    vector3f sphere_sample(vector3f point, vector3f normal) override;
+    vector3f sphere_sample(vector3f point, vector3f normal, Engine &rng) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
-private:
-    UniformDistribution uni_dist_;
 };
 
 class Primitive;
 
 class LightDistribution : public RandomDistribution {
 public:
-    LightDistribution(const Primitive &object);
-    vector3f sphere_sample(vector3f point, vector3f normal) override;
+    explicit LightDistribution(const Primitive &object);
+    vector3f sphere_sample(vector3f point, vector3f normal, Engine &rng) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
 private:
-    const Primitive *primitive_;
-    UniformDistribution uni_dist_;
+    const Primitive *primitive;
 };
 
 class MixedDistribution : public RandomDistribution {
 public:
-    explicit MixedDistribution();
-    vector3f sphere_sample(vector3f point, vector3f normal) override;
+    vector3f sphere_sample(vector3f point, vector3f normal, Engine &rng) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
     void add_dist(const random_distribution_sh_ptr& dist);
-    size_t get_size() const;
+    [[nodiscard]] size_t get_size() const;
+    ~MixedDistribution();
 private:
-    std::vector<random_distribution_sh_ptr> distributions_;
-    UniformDistribution uni_;
+    std::vector<random_distribution_sh_ptr> distributions;
+    std::vector<int> count;
 };
 
 namespace rng {
-Engine get_generator();
+Engine get_generator(size_t seed = 0);
 //vector3f get_sphere(Engine rng);
 }

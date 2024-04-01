@@ -25,7 +25,7 @@ public:
     std::vector<primitive_sh_ptr> objects;
     std::vector<light_source_sh_ptr> light;
 
-    Intersection intersect(Ray r, float max_distance = 1e9, bool no_light = false) const;
+    Intersection intersect(Ray r, Engine &rng, float max_distance = 1e9, bool no_light = false) const;
 private:
     const float gamma_ = 1.f / 2.2f;
     class SceneParser;

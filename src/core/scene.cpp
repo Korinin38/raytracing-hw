@@ -63,13 +63,10 @@ Scene::Scene(const std::string &filename) {
         random_distributions_.add_dist(light);
 }
 
-static Engine engine = rng::get_generator();
-
 void Scene::render(ProgressFunc callback) const {
     timer t;
     uniform_float_d offset(-0.5f, 0.5f);
-    std::vector<vector3f> sample_canvas;
-    sample_canvas.reserve(camera->canvas.height() * camera->canvas.width());
+    std::vector<vector3f> sample_canvas(camera->canvas.height() * camera->canvas.width(), {0.f, 0.f, 0.f});
     if (callback)
         callback(0, &t);
     else
@@ -83,17 +80,15 @@ void Scene::render(ProgressFunc callback) const {
 #endif
     for (int j = 0; j < camera->canvas.height(); ++j) {
         for (int i = 0; i < camera->canvas.width(); ++i) {
+            Engine rng = rng::get_generator(j * camera->canvas.width() + i);
             for (int s = 0; s < samples; ++s) {
-                vector2f pix_offset{offset(engine), offset(engine)};
+                vector2f pix_offset{offset(rng), offset(rng)};
                 vector2i pix_pos{i, j};
                 Ray r = camera->cast_in_pixel(pix_pos, pix_offset);
                 r.power = ray_depth;
 
-                auto intersection = intersect(r);
-                if (s == 0)
-                    sample_canvas[j * camera->canvas.width() + i] = intersection.color;
-                else
-                    sample_canvas[j * camera->canvas.width() + i] += intersection.color;
+                auto intersection = intersect(r, rng);
+                sample_canvas[j * camera->canvas.width() + i] += intersection.color;
             }
 
             if (callback)
@@ -105,11 +100,12 @@ void Scene::render(ProgressFunc callback) const {
         }
     }
 
-    #pragma omp parallel for default(none) shared(sample_canvas) collapse(2)
+    const float normalizer = 1.f / (float)samples;
+    #pragma omp parallel for default(none) shared(normalizer, sample_canvas) collapse(2)
     for (int j = 0; j < camera->canvas.height(); ++j) {
         for (int i = 0; i < camera->canvas.width(); ++i) {
             vector3f color = sample_canvas[j * camera->canvas.width() + i];
-            color *= (1.f / (float)samples);
+            color *= normalizer;
             color = aces_tonemap(color);
             color = pow(color, gamma_);
             camera->canvas.set({i, j}, normal_to_ch8bit(color));
@@ -121,7 +117,7 @@ void Scene::draw_into(const std::string &filename) const {
     camera->canvas.write_to(filename);
 }
 
-Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
+Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_color) const {
     if (r.power <= 0) {
         return {};
     }
@@ -154,14 +150,14 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
         return intersection;
 
     {
-        vector3f pos = r.position + r.direction * intersection.distance;
+        vector3f pos = r.origin + r.direction * intersection.distance;
 
         switch(objects[intersected_idx]->material) {
             case Primitive::Diffuse: {
                 vector3f dir{};
                 float pdf = 0.f;
                 float cos;
-                dir = random_distributions_.sphere_sample(pos, intersection.normal);
+                dir = random_distributions_.sphere_sample(pos, intersection.normal, rng);
                 cos = dot(dir, intersection.normal);
                 if (cos <= 0.f)
                     break;
@@ -170,7 +166,7 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                     break;
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
-                auto reflect_inter = intersect(reflect_ray, max_distance);
+                auto reflect_inter = intersect(reflect_ray, rng, max_distance);
                 float coeff = M_1_PIf32 / pdf;
                 intersection.color += objects[intersected_idx]->color * coeff * reflect_inter.color * cos;
                 break;
@@ -193,7 +189,7 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                     float r0 = std::pow((eta_1 - eta_2) / (eta_1 + eta_2), 2.f);
                     reflection_coefficient = r0 + (1 - r0) * std::pow(1 - cos_in, 5.f);
                     uniform_float_d ray_chooser(0.f, 1.f);
-                    direction = ray_chooser(engine);
+                    direction = ray_chooser(rng);
                 }
 
                 if (direction < reflection_coefficient)
@@ -203,7 +199,7 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                     normalize(dir);
                     Ray reflect_ray(pos + dir * step, dir);
                     reflect_ray.power = r.power;
-                    auto reflect_inter = intersect(reflect_ray, max_distance);
+                    auto reflect_inter = intersect(reflect_ray, rng, max_distance);
                     intersection.color += reflect_inter.color;
                 } else {
                     // refracted
@@ -214,7 +210,7 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                     normalize(dir);
                     Ray reflect_ray(pos + dir * step, dir);
                     reflect_ray.power = r.power;
-                    auto refract_inter = intersect(reflect_ray, max_distance);
+                    auto refract_inter = intersect(reflect_ray, rng, max_distance);
 
                     vector3f refract_color{};
                     if (refract_inter) {
@@ -233,7 +229,7 @@ Intersection Scene::intersect(Ray r, float max_distance, bool no_color) const {
                 normalize(dir);
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
-                auto reflect_inter = intersect(reflect_ray, max_distance);
+                auto reflect_inter = intersect(reflect_ray, rng, max_distance);
                 intersection.color += objects[intersected_idx]->color * reflect_inter.color;
                 break;
             }

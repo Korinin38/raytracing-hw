@@ -28,11 +28,11 @@ bool Primitive::parse(const std::string& line) {
         return true;
     } else if (cmd == "TRIANGLE") {
 		type = Triangle;
-        vector3f p1, p2, p3;
+        vector3f p1{}, p2{}, p3{};
         ss >> p1.x >> p1.y >> p1.z;
         ss >> p2.x >> p2.y >> p2.z;
         ss >> p3.x >> p3.y >> p3.z;
-        param_ = std::tuple(p1, p2, p3);
+        param_ = std::array{p1, p2 - p1, p3 - p1};
         return true;
     } else if (cmd == "POSITION") {
 		position = vec3f_from_string(line, cmd.length() + 1);
@@ -60,13 +60,13 @@ bool Primitive::parse(const std::string& line) {
 }
 
 void Primitive::transformRay(Ray &ray) const {
-	ray.position = ray.position - position;
+	ray.origin = ray.origin - position;
 
-    ray.position = rotate(ray.position, *rotation);
+    ray.origin = rotate(ray.origin, *rotation);
     ray.direction = rotate(ray.direction, *rotation);
 }
 
-Ray::Ray(vector3f p, vector3f d) : position(p), direction(d) {
+Ray::Ray(vector3f p, vector3f d) : origin(p), direction(d) {
     normalize(direction);
 }
 
@@ -79,8 +79,8 @@ Intersection Primitive::intersect(Ray ray) const {
             vector3f t1{};
             vector3f t2{};
             for (int i = 0; i < 3; ++i) {
-                t1[i] = (-size_[i] - ray.position[i]) / ray.direction[i];
-                t2[i] = (size_[i] - ray.position[i]) / ray.direction[i];
+                t1[i] = (-size_[i] - ray.origin[i]) / ray.direction[i];
+                t2[i] = (size_[i] - ray.origin[i]) / ray.direction[i];
                 if (t1[i] > t2[i])
                     std::swap(t1[i], t2[i]);
             }
@@ -101,8 +101,11 @@ Intersection Primitive::intersect(Ray ray) const {
 
             // normal calculation
             {
-                vector3f intersection_point = ray.position + intersection.distance * ray.direction;
-                intersection.normal = intersection_point / size_;
+                vector3f intersection_point = ray.origin + intersection.distance * ray.direction;
+                if (cache.box_inv_size.is_zero()) {
+                    cache.box_inv_size = (vector3f{1.f, 1.f, 1.f} / size_);
+                }
+                intersection.normal = intersection_point * cache.box_inv_size;
 
                 float max_dist = 0.f;
                 int max_idx = 0;
@@ -127,7 +130,7 @@ Intersection Primitive::intersect(Ray ray) const {
         case Plane: {
             const auto &normal_ = std::get<vector3f>(param_);
 
-            float t = -dot(ray.position, normal_) / dot(ray.direction, normal_);
+            float t = -dot(ray.origin, normal_) / dot(ray.direction, normal_);
 
             if (t < 0.f)
                 return {};
@@ -149,7 +152,7 @@ Intersection Primitive::intersect(Ray ray) const {
             const auto &radius_ = std::get<vector3f>(param_);
 
             float a, b, c;
-            vector3f o_r = ray.position / radius_;
+            vector3f o_r = ray.origin / radius_;
             vector3f d_r = ray.direction / radius_;
             a = dot(d_r, d_r);
             b = dot(o_r, d_r);
@@ -178,7 +181,7 @@ Intersection Primitive::intersect(Ray ray) const {
 
             // normal calculation
             {
-                vector3f intersection_point = ray.position + intersection.distance * ray.direction;
+                vector3f intersection_point = ray.origin + intersection.distance * ray.direction;
                 intersection.normal = normal(intersection_point / (radius_ * radius_));
                 intersection.normal = rotate(intersection.normal, rotation);
                 if (intersection.inside)
@@ -188,15 +191,60 @@ Intersection Primitive::intersect(Ray ray) const {
             return intersection;
         }
         case Triangle: {
-            //todo
+            auto params = std::get<std::array<vector3f, 3>>(param_);
+            vector3f &triangle_origin = params[0];
+            vector3f &U = params[1];
+            vector3f &V = params[2];
+
+            vector3f cross_dir_V = (cross(ray.direction, V));
+            float det = dot(U, cross_dir_V);
+            if (-1e-6 < det && det < 1e-6) {
+                return {}; // ray is parallel to the triangle
+            }
+
+            float inv_det = 1.f / det;
+            vector3f s = ray.origin - triangle_origin;
+            float u = inv_det * dot(s, cross_dir_V);
+            if (u < 0 || u > 1)
+                return {};
+
+
+            vector3f cross_s_U = cross(s, U);
+            float v = inv_det * dot(ray.direction, cross_s_U);
+            if (v < 0 || u + v > 1)
+                return {};
+
+            float t = inv_det * dot(V, cross_s_U);
+            if (t < 0.f)
+                return {};
+
+
+            Intersection intersection;
+
+            if (cache.triangle_normal.is_zero()) {
+                cache.triangle_normal = cross(U, V);
+                cache.triangle_area = length(cache.triangle_normal);
+                normalize(cache.triangle_normal);
+            }
+
+            intersection.successful = true;
+            intersection.color = color;
+            intersection.normal = rotate(cache.triangle_normal, rotation);
+            intersection.distance = t;
+            if (dot(ray.direction, intersection.normal) > 0) {
+                intersection.inside = true;
+                intersection.normal = -intersection.normal;
+            }
+
+            return intersection;
+
         }
     }
     throw std::runtime_error("Reached unreachable code");
 }
 
 bool Primitive::emissive() const {
-    vector3f zero{};
-    return (emission != zero);
+    return (!emission.is_zero());
 }
 
 vector3f Primitive::to_global(vector3f local) const {

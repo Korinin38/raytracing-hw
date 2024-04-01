@@ -41,6 +41,8 @@ struct vector3f {
     vector3f &operator+=(vector3f b);
     vector3f &operator*=(vector3f b);
     vector3f &operator*=(float b);
+
+    [[nodiscard]] bool is_zero() const {return x == 0 && y == 0 && z == 0; };
 };
 
 struct vector4f {
