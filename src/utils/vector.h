@@ -1,7 +1,8 @@
 #pragma once
 
-#include <string>
 #include <cmath>
+#include <limits>
+#include <string>
 
 #pragma pack(push, 1)
 struct vector2i {
@@ -355,4 +356,23 @@ inline vector3f aces_tonemap(const vector3f &x) {
     const float d = 0.59f;
     const float e = 0.14f;
     return saturate((x * ((a * x).add(b))) / (x * ((c * x).add(d)).add(e)));
+}
+
+
+inline vector3f get_max_vec3f() {
+    const float m = std::numeric_limits<float>::max();
+    return {m, m, m};
+}
+
+inline vector3f get_min_vec3f() {
+    const float m = std::numeric_limits<float>::min();
+    return {m, m, m};
+}
+
+vector3f min(vector3f a, vector3f b) {
+    return {std::min(a.x, b.x), std::min(a.y, b.y), std::min(a.z, b.z)};
+}
+
+vector3f max(vector3f a, vector3f b) {
+    return {std::max(a.x, b.x), std::max(a.y, b.y), std::max(a.z, b.z)};
 }

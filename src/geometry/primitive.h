@@ -7,10 +7,36 @@
 #include <memory>
 #include <variant>
 
+struct AABB;
 struct Primitive;
 struct Ray;
 
 typedef std::shared_ptr<Primitive> primitive_sh_ptr;
+
+struct AABB {
+    vector3f min = get_max_vec3f();
+    vector3f max = get_min_vec3f();
+
+    void grow(vector3f p) {
+        min = ::min(min, p);
+        max = ::max(max, p);
+    }
+
+    void grow(AABB aabb) {
+        min = ::min(min, aabb.min);
+        max = ::max(max, aabb.max);
+    }
+
+    [[nodiscard]]
+    bool empty() const {
+        return (min.x > max.x);
+    }
+
+    [[nodiscard]]
+    vector3f size() const {
+        return max - min;
+    }
+};
 
 typedef struct Intersection {
     bool successful = false;
@@ -54,10 +80,13 @@ public:
     vector3f to_global(vector3f local) const;
     vector3f to_local(vector3f global) const;
 
+    AABB aabb() const;
+
     struct CalculationCache {
         vector3f triangle_normal{};
         float triangle_area = 0.f;
         vector3f box_inv_size{};
+        AABB aabb;
     };
     mutable CalculationCache cache;
 protected:

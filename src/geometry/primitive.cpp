@@ -254,3 +254,44 @@ vector3f Primitive::to_global(vector3f local) const {
 vector3f Primitive::to_local(vector3f global) const {
     return rotate(global - position, *rotation);
 }
+
+AABB Primitive::aabb() const {
+    if (cache.aabb.empty()) {
+        switch (type) {
+            case Ellipsoid: {
+                // todo: make more tight AABB
+                //  for now, use Box case
+            }
+            case Box: {
+                auto size = std::get<vector3f>(param_);
+                std::vector<vector3f> points;
+                points.reserve(8);
+                for (float sgn1 : {-1.f, 1.f})
+                for (float sgn2 : {-1.f, 1.f})
+                for (float sgn3 : {-1.f, 1.f}) {
+                    points.push_back({size.x * sgn1, size.y * sgn2, size.z * sgn3});
+                }
+
+                for (auto &p : points) {
+                    rotate(p,rotation);
+                    cache.aabb.grow(p + position);
+                }
+                break;
+            }
+            case Triangle: {
+                auto points = std::get<std::array<vector3f, 3>>(param_);
+                points[1] += points[0];
+                points[2] += points[0];
+                for (auto &p : points) {
+                    rotate(p, rotation);
+                    cache.aabb.grow(p + position);
+                }
+                break;
+            }
+            case Plane:
+            default:
+                throw std::runtime_error("Incorrect type to calculate AABB");
+        }
+    }
+    return cache.aabb;
+}
