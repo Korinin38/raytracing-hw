@@ -58,8 +58,9 @@ Intersection BVH::intersect(Ray r, size_t node_id) {
 
     Intersection intersection;
 
+    // todo
     if (node.left != invalidKey) {
-        Intersection a = intersect(r, )
+//        Intersection a = intersect(r, )
 
     }
 
