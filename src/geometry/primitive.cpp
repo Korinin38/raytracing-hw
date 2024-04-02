@@ -295,3 +295,63 @@ AABB Primitive::aabb() const {
     }
     return cache.aabb;
 }
+
+bool AABB::intersect(Ray r) {
+    // got from https://github.com/erich666/GraphicsGems/blob/master/gems/RayBox.c
+    // see: https://gamedev.stackexchange.com/questions/18436/most-efficient-aabb-vs-ray-collision-algorithms
+    enum {
+        DIMS = 3,
+        Left = 0,
+        Mid = 1,
+        Right = 2
+    };
+    bool inside = true;
+    int quadrant[DIMS];
+    float candidatePlane[DIMS];
+
+    for (int i = 0; i < DIMS; ++i) {
+        if (r.origin[i] < min[i]) {
+            quadrant[i] = Left;
+            candidatePlane[i] = min[i];
+            inside = false;
+        } else if (r.origin[i] > max[i]) {
+            quadrant[i] = Right;
+            candidatePlane[i] = max[i];
+            inside = false;
+        } else {
+            quadrant[i] = Mid;
+        }
+    }
+    if (inside)
+        return true;
+
+    float maxT[DIMS];
+
+    // Calculate T distances to candidate planes
+    for (int i = 0; i < DIMS; i++)
+        if (quadrant[i] != Mid && r.direction[i] !=0.f)
+            maxT[i] = (candidatePlane[i] - r.origin[i]) / r.direction[i];
+        else
+            maxT[i] = -1.;
+
+
+    // Get largest of the maxT's for final choice of intersection
+    int whichPlane = 0;
+    for (int i = 1; i < DIMS; ++i) {
+        if (maxT[whichPlane] < maxT[i]) {
+            whichPlane = i;
+        }
+    }
+
+    if (maxT[whichPlane] < 0.f) return false;
+
+    for (int i = 0; i < DIMS; i++) {
+        if (whichPlane != i) {
+            float coord = r.origin[i] + maxT[whichPlane] * r.direction[i];
+            if (coord < min[i] || coord > max[i])
+                return false;
+        }
+    }
+
+    return true;
+}

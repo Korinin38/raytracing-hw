@@ -36,6 +36,14 @@ struct AABB {
     vector3f size() const {
         return max - min;
     }
+
+    [[nodiscard]]
+    float surface_area() const {
+        vector3f size = this->size();
+        return 2.f * (size.x * size.y + size.x * size.z + size.y * size.z);
+    }
+
+    bool intersect(Ray r);
 };
 
 typedef struct Intersection {
@@ -44,6 +52,7 @@ typedef struct Intersection {
     vector3f normal;
     vector3f color;
     bool inside = false;
+    size_t object_id = -1;
     operator bool() const;
 } Intersection;
 

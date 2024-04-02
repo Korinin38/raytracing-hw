@@ -1,9 +1,10 @@
 #pragma once
 
-#include "geometry/primitive.h"
-#include "geometry/light_source.h"
-#include "core/camera.h"
-#include "utils/base.h"
+#include <core/camera.h>
+#include <core/bvh.h>
+#include <geometry/primitive.h>
+#include <geometry/light_source.h>
+#include <utils/base.h>
 
 #include <string>
 #include <vector>
@@ -23,6 +24,7 @@ public:
     int samples = 16;
     vector3f ambient{0.f, 0.f, 0.f};
     std::vector<primitive_sh_ptr> objects;
+    BVH bvh;
     std::vector<light_source_sh_ptr> light;
 
     Intersection intersect(Ray r, Engine &rng, float max_distance = 1e9, bool no_light = false) const;

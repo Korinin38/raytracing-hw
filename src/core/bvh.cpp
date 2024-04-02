@@ -1,7 +1,7 @@
 #include "bvh.h"
 #include <algorithm>
 
-size_t BVH::buildNode(std::vector<primitive_sh_ptr> &primitives, size_t first, size_t count) {
+size_t BVH::buildNode(std::vector<primitive_sh_ptr> &primitives, size_t first, size_t count) { // NOLINT(*-no-recursion)
     size_t place = nodes.size();
     nodes.emplace_back();
     Node &cur = nodes.back();
@@ -31,11 +31,11 @@ size_t BVH::buildNode(std::vector<primitive_sh_ptr> &primitives, size_t first, s
         }
     }
 
+    // partition
     float middle = cur.aabb.min[aabb_widest_axis] + aabb_size[aabb_widest_axis] / 2;
     std::function<bool(primitive_sh_ptr)> pred = [aabb_widest_axis, middle](const primitive_sh_ptr &a) {
         return ((a.get())->aabb().max[aabb_widest_axis] < middle);
     };
-
 
     auto res = std::partition(begin, end, pred);
     if (res == begin || res == end) {
@@ -48,4 +48,20 @@ size_t BVH::buildNode(std::vector<primitive_sh_ptr> &primitives, size_t first, s
     cur.right = buildNode(primitives, res - primitives.begin(), primitives.end() - res);
 
     return place;
+}
+
+Intersection BVH::intersect(Ray r, size_t node_id) {
+    Node & node = nodes[node_id];
+
+    if (!node.aabb.intersect(r))
+        return {};
+
+    Intersection intersection;
+
+    if (node.left != invalidKey) {
+        Intersection a = intersect(r, )
+
+    }
+
+    return Intersection();
 }

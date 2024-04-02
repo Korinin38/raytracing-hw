@@ -355,7 +355,7 @@ inline vector3f aces_tonemap(const vector3f &x) {
     const float c = 2.43f;
     const float d = 0.59f;
     const float e = 0.14f;
-    return saturate((x * ((a * x).add(b))) / (x * ((c * x).add(d)).add(e)));
+    return saturate((x * ((a * x).add(b))) / (x * ((c * x).add(d))).add(e));
 }
 
 

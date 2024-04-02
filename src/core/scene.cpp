@@ -33,7 +33,7 @@ enum ParseStage {
     READY =             (1 << 7) - 1
 };
 
-ParseStage get_parse_stage(std::string cmd) {
+inline ParseStage get_parse_stage(const std::string& cmd) {
     if (cmd == "DIMENSIONS")        return DIMENSIONS; else
     if (cmd == "BG_COLOR")          return BG_COLOR; else
     if (cmd == "CAMERA_POSITION")   return CAMERA_POSITION; else
@@ -52,15 +52,18 @@ ParseStage get_parse_stage(std::string cmd) {
 Scene::Scene(const std::string &filename) {
     (SceneParser(*this, filename));
 
-    mixed_distribution_sh_ptr light = std::make_shared<MixedDistribution>();
+    mixed_distribution_sh_ptr light_distr = std::make_shared<MixedDistribution>();
     for (const auto& o : objects) {
         if (o->emissive() && o->type != Primitive::Plane)
-            light->add_dist(std::make_shared<LightDistribution>(*o));
+            light_distr->add_distr(std::make_shared<LightDistribution>(*o));
     }
 
-    random_distributions_.add_dist(std::make_shared<CosineWeightedDistribution>());
-    if (light->get_size() > 0)
-        random_distributions_.add_dist(light);
+//    bvh.buildBVH(objects);
+
+    random_distributions_.add_distr(std::make_shared<CosineWeightedDistribution>());
+//    random_distributions_.add_distr(std::make_shared<UniformDistribution>());
+    if (light_distr->get_size() > 0)
+        random_distributions_.add_distr(light_distr);
 }
 
 void Scene::render(ProgressFunc callback) const {
@@ -76,7 +79,7 @@ void Scene::render(ProgressFunc callback) const {
     unsigned int progress = 0;
 
 #ifdef NDEBUG
-    #pragma omp parallel for shared(offset, sample_canvas) collapse(2)
+    #pragma omp parallel for shared(offset, sample_canvas) schedule(guided, 16) collapse(2)
 #endif
     for (int j = 0; j < camera->canvas.height(); ++j) {
         for (int i = 0; i < camera->canvas.width(); ++i) {
@@ -128,7 +131,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
     intersection.color = bg_color;
     intersection.inside = false;
 
-    int intersected_idx = -1;
+//    size_t intersected_idx = -1;
 
     for (int i = 0; i < objects.size(); ++i) {
         auto intersect_obj = objects[i]->intersect(r);
@@ -137,7 +140,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
         if (intersect_obj.distance > intersection.distance) {
             continue;
         }
-        intersected_idx = i;
+        intersection.object_id = i;
         intersection.successful = true;
         intersection.inside = intersect_obj.inside;
         intersection.distance = intersect_obj.distance;
@@ -146,18 +149,20 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
     }
 
     // simple check with no light or color
-    if (no_color || intersected_idx >= objects.size())
+    if (no_color || intersection.object_id >= objects.size())
         return intersection;
 
     {
+        Primitive &obj = *objects[intersection.object_id].get();
+
         vector3f pos = r.origin + r.direction * intersection.distance;
 
-        switch(objects[intersected_idx]->material) {
+        switch(obj.material) {
             case Primitive::Diffuse: {
                 vector3f dir{};
                 float pdf = 0.f;
                 float cos;
-                dir = random_distributions_.sphere_sample(pos, intersection.normal, rng);
+                dir = random_distributions_.sample(pos, intersection.normal, rng);
                 cos = dot(dir, intersection.normal);
                 if (cos <= 0.f)
                     break;
@@ -168,13 +173,13 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
                 reflect_ray.power = r.power;
                 auto reflect_inter = intersect(reflect_ray, rng, max_distance);
                 float coeff = M_1_PIf32 / pdf;
-                intersection.color += objects[intersected_idx]->color * coeff * reflect_inter.color * cos;
+                intersection.color += obj.color * coeff * reflect_inter.color * cos;
                 break;
             }
             case Primitive::Dielectric: {
                 float cos_in = -dot(intersection.normal, r.direction);
                 float eta_1 = 1.f;
-                float eta_2 = objects[intersected_idx]->ior;
+                float eta_2 = obj.ior;
                 if (intersection.inside)
                     std::swap(eta_1, eta_2);
                 float refractive_index = eta_1 / eta_2;
@@ -216,7 +221,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
                     if (refract_inter) {
                         refract_color = refract_inter.color;
                         if (!intersection.inside)
-                            refract_color *= objects[intersected_idx]->color;
+                            refract_color *= obj.color;
                     } else {
                         refract_color = bg_color;
                     }
@@ -230,7 +235,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
                 auto reflect_inter = intersect(reflect_ray, rng, max_distance);
-                intersection.color += objects[intersected_idx]->color * reflect_inter.color;
+                intersection.color += obj.color * reflect_inter.color;
                 break;
             }
         }

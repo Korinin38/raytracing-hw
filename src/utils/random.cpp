@@ -31,28 +31,26 @@ float UniformDistribution::norm_sample(Engine &rng) {
     return normDist(rng);
 }
 
-vector3f UniformDistribution::uni_sphere_sample(vector3f /*point*/, vector3f normal, Engine &rng) {
+vector3f UniformDistribution::uni_sphere_sample(Engine &rng) {
     vector3f a{normDist(rng), normDist(rng), normDist(rng)};
-    normalize(a);
-    if (dot(a, normal) < 0.f)
-        a = -a;
-    return a;
+    return ::normal(a);
 }
 
-vector3f UniformDistribution::sphere_sample(vector3f point, vector3f normal, Engine &rng) {
-    return uni_sphere_sample(point, normal, rng);
+vector3f UniformDistribution::sample(vector3f point, vector3f normal, Engine &rng) {
+    vector3f sphere_sample = uni_sphere_sample(rng);
+    if (dot(sphere_sample, normal) < 0.f)
+        sphere_sample = -sphere_sample;
+    return sphere_sample;
 }
 
 float UniformDistribution::pdf(vector3f point, vector3f normal, vector3f direction) {
     return M_1_PIf32 / 2;
 }
 
-CosineWeightedDistribution::CosineWeightedDistribution() {}
-
-vector3f CosineWeightedDistribution::sphere_sample(vector3f point, vector3f normal, Engine &rng) {
+vector3f CosineWeightedDistribution::sample(vector3f point, vector3f normal, Engine &rng) {
     vector3f dir{};
     do {
-        dir = UniformDistribution::uni_sphere_sample(point, normal, rng) + normal;
+        dir = UniformDistribution::uni_sphere_sample(rng) + normal;
     } while (length(dir) < 1e-12);
     normalize(dir);
     return dir;
@@ -66,7 +64,7 @@ LightDistribution::LightDistribution(const Primitive &object) {
     primitive = &object;
 }
 
-vector3f LightDistribution::sphere_sample(vector3f point, vector3f normal, Engine &rng) {
+vector3f LightDistribution::sample(vector3f point, vector3f normal, Engine &rng) {
     vector3f res{};
     switch (primitive->type) {
         case Primitive::Box: {
@@ -192,24 +190,24 @@ float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction
     for (int i = 0; i <= 1; ++i) {
         if (!intersection[i])
             break;
-        res += std::abs(probability[i] * (intersection[i].distance * intersection[i].distance) / std::abs(dot(intersection[i].normal, direction)));
+        res += std::abs(probability[i] * (intersection[i].distance * intersection[i].distance) / dot(intersection[i].normal, direction));
     }
     return res;
 }
 
-void MixedDistribution::add_dist(const random_distribution_sh_ptr& dist) {
+void MixedDistribution::add_distr(const random_distribution_sh_ptr& dist) {
     distributions.push_back(dist);
     count.push_back(0);
 }
 
-vector3f MixedDistribution::sphere_sample(vector3f point, vector3f normal, Engine &rng) {
+vector3f MixedDistribution::sample(vector3f point, vector3f normal, Engine &rng) {
     if (distributions.empty())
         throw std::runtime_error("No distributions to sample from");
     int sample = std::floor((UniformDistribution::sample(rng) + 1.f) * 0.5f * (float)distributions.size());
     if (sample == distributions.size())
         sample -= 1;
     count[sample]++;
-    return distributions[sample]->sphere_sample(point, normal, rng);
+    return distributions[sample]->sample(point, normal, rng);
 }
 
 float MixedDistribution::pdf(vector3f point, vector3f normal, vector3f direction) {

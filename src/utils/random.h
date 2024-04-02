@@ -20,8 +20,8 @@ typedef std::shared_ptr<MixedDistribution> mixed_distribution_sh_ptr;
 class RandomDistribution {
 public:
     // get direction in a hemisphere defined by normal
-    virtual vector3f sphere_sample(vector3f point, vector3f normal, Engine &rng) = 0;
-    // get pdf of direction that we got by sphere_sample
+    virtual vector3f sample(vector3f point, vector3f normal, Engine &rng) = 0;
+    // get pdf of direction that we got by sample
     virtual float pdf(vector3f point, vector3f normal, vector3f direction) = 0;
 };
 
@@ -29,15 +29,14 @@ class UniformDistribution : public RandomDistribution {
 public:
     static float sample(Engine &rng);
     static float norm_sample(Engine &rng);
-    static vector3f uni_sphere_sample(vector3f point, vector3f normal, Engine &rng);
-    vector3f sphere_sample(vector3f point, vector3f normal, Engine &rng) override;
+    static vector3f uni_sphere_sample(Engine &rng);
+    vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
 };
 
 class CosineWeightedDistribution : public RandomDistribution {
 public:
-    CosineWeightedDistribution();
-    vector3f sphere_sample(vector3f point, vector3f normal, Engine &rng) override;
+    vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
 };
 
@@ -46,7 +45,7 @@ class Primitive;
 class LightDistribution : public RandomDistribution {
 public:
     explicit LightDistribution(const Primitive &object);
-    vector3f sphere_sample(vector3f point, vector3f normal, Engine &rng) override;
+    vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
 private:
     const Primitive *primitive;
@@ -54,9 +53,9 @@ private:
 
 class MixedDistribution : public RandomDistribution {
 public:
-    vector3f sphere_sample(vector3f point, vector3f normal, Engine &rng) override;
+    vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
-    void add_dist(const random_distribution_sh_ptr& dist);
+    void add_distr(const random_distribution_sh_ptr& dist);
     [[nodiscard]] size_t get_size() const;
     ~MixedDistribution();
 private:

@@ -27,8 +27,8 @@ add_executable(solution
         src/utils/vector.h
         src/utils/random.h
         src/utils/random.cpp
-        src/geometry/bvh.cpp
-        src/geometry/bvh.h)
+        src/core/bvh.cpp
+        src/core/bvh.h)
 
 if (USE_CALLBACK)
     target_compile_definitions(solution PRIVATE "USE_CALLBACK")
