@@ -44,8 +44,8 @@ size_t BVH::buildNode(std::vector<primitive_sh_ptr> &primitives, size_t first, s
         return place;
     }
 
-    cur.left = buildNode(begin - primitives.begin(), res - begin);
-    cur.right = buildNode(res - primitives.begin(), primitives.end() - res);
+    cur.left = buildNode(primitives, begin - primitives.begin(), res - begin);
+    cur.right = buildNode(primitives, res - primitives.begin(), primitives.end() - res);
 
     return place;
 }
@@ -60,12 +60,12 @@ Intersection BVH::intersect(const std::vector<primitive_sh_ptr> &primitives, Ray
 
     // todo
     if (node.left != invalidKey) {
-        Intersection a = intersect(r, node.left);
+        Intersection a = intersect(primitives, r, node.left);
         if (a && a.distance < intersection.distance)
             intersection = a;
     }
     if (node.right != invalidKey) {
-        Intersection a = intersect(r, node.right);
+        Intersection a = intersect(primitives, r, node.right);
         if (a && a.distance < intersection.distance)
             intersection = a;
     }
