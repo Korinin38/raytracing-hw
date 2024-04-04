@@ -14,12 +14,14 @@ struct Node {
     size_t primitive_count = 0;
 };
 
-struct BVH {
+class BVH {
     std::vector<Node> nodes;
-    size_t buildNode(std::vector<primitive_sh_ptr> &primitives, size_t first, size_t count);
     void buildBVH(std::vector<primitive_sh_ptr> &primitives) {
         buildNode(primitives, 0, primitives.size());
     }
 
-    Intersection intersect(Ray r, size_t node_id = 0);
+private:
+    size_t buildNode(std::vector<primitive_sh_ptr> &primitives, size_t first, size_t count);
+
+    Intersection intersect(const std::vector<primitive_sh_ptr> &primitives, Ray r, size_t node_id = 0);
 };
