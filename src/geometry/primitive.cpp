@@ -273,7 +273,7 @@ AABB Primitive::aabb() const {
                 }
 
                 for (auto &p : points) {
-                    rotate(p,rotation);
+                    p = rotate(p,rotation);
                     cache.aabb.grow(p + position);
                 }
                 break;
@@ -283,8 +283,7 @@ AABB Primitive::aabb() const {
                 points[1] += points[0];
                 points[2] += points[0];
                 for (auto &p : points) {
-                    rotate(p, rotation);
-                    cache.aabb.grow(p + position);
+                    cache.aabb.grow(rotate(p, rotation) + position);
                 }
                 break;
             }
@@ -296,7 +295,7 @@ AABB Primitive::aabb() const {
     return cache.aabb;
 }
 
-bool AABB::intersect(Ray r) {
+bool AABB::intersect(Ray r) const {
     // got from https://github.com/erich666/GraphicsGems/blob/master/gems/RayBox.c
     // see: https://gamedev.stackexchange.com/questions/18436/most-efficient-aabb-vs-ray-collision-algorithms
     enum {

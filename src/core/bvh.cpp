@@ -1,10 +1,15 @@
 #include "bvh.h"
 #include <algorithm>
 
-size_t BVH::buildNode(std::vector<primitive_sh_ptr> &primitives, size_t first, size_t count) { // NOLINT(*-no-recursion)
-    size_t place = nodes.size();
-    nodes.emplace_back();
-    Node &cur = nodes.back();
+size_t BVH::buildNode(std::vector<StackBuildNode> &nodes_q, std::vector<primitive_sh_ptr> &primitives) { // NOLINT(*-no-recursion)
+    StackBuildNode stack = nodes_q.back();
+    nodes_q.pop_back();
+
+    size_t place = stack.place;
+    Node &cur = nodes[place];
+
+    size_t first = stack.first;
+    size_t count = stack.count;
 
     auto begin = primitives.begin() + (ptrdiff_t)first;
     auto end = primitives.begin() + (ptrdiff_t)first + (ptrdiff_t)count;
@@ -43,20 +48,30 @@ size_t BVH::buildNode(std::vector<primitive_sh_ptr> &primitives, size_t first, s
         cur.primitive_count = count;
         return place;
     }
+//
+    size_t l_fc = begin - primitives.begin();
+    size_t l_cnt = res - begin;
+    size_t r_fc = res - primitives.begin();
+    size_t r_cnt = end - res;
 
-    cur.left = buildNode(primitives, begin - primitives.begin(), res - begin);
-    cur.right = buildNode(primitives, res - primitives.begin(), primitives.end() - res);
+    nodes[place].left = nodes.size();
+    nodes_q.emplace_back(nodes.size(), l_fc, l_cnt);
+    nodes.emplace_back();
+    nodes[place].right = nodes.size();
+    nodes_q.emplace_back(nodes.size(), r_fc, r_cnt);
+    nodes.emplace_back();
 
     return place;
 }
 
-Intersection BVH::intersect(const std::vector<primitive_sh_ptr> &primitives, Ray r, size_t node_id) {
-    Node & node = nodes[node_id];
+Intersection BVH::intersect(const std::vector<primitive_sh_ptr> &primitives, Ray r, size_t node_id) const {
+    const Node & node = nodes[node_id];
 
     if (!node.aabb.intersect(r))
         return {};
 
     Intersection intersection;
+    intersection.distance = 1e9;
 
     // todo
     if (node.left != invalidKey) {
@@ -74,8 +89,10 @@ Intersection BVH::intersect(const std::vector<primitive_sh_ptr> &primitives, Ray
 
     for (size_t i = node.first_primitive_id; i < node.first_primitive_id + node.primitive_count; ++i) {
         Intersection a = primitives[i]->intersect(r);
-        if (a && a.distance < intersection.distance)
+        if (a && a.distance < intersection.distance) {
             intersection = a;
+            intersection.object_id = i;
+        }
     }
 
     return intersection;

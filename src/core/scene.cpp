@@ -58,7 +58,7 @@ Scene::Scene(const std::string &filename) {
             light_distr->add_distr(std::make_shared<LightDistribution>(*o));
     }
 
-//    bvh.buildBVH(objects);
+    bvh.buildBVH(objects);
 
     random_distributions_.add_distr(std::make_shared<CosineWeightedDistribution>());
 //    random_distributions_.add_distr(std::make_shared<UniformDistribution>());
@@ -78,9 +78,7 @@ void Scene::render(ProgressFunc callback) const {
     const unsigned int canvas_size = camera->canvas.height() * camera->canvas.width();
     unsigned int progress = 0;
 
-#ifdef NDEBUG
     #pragma omp parallel for shared(offset, sample_canvas) schedule(guided, 16) collapse(2)
-#endif
     for (int j = 0; j < camera->canvas.height(); ++j) {
         for (int i = 0; i < camera->canvas.width(); ++i) {
             Engine rng = rng::get_generator(j * camera->canvas.width() + i);
@@ -130,23 +128,44 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
     intersection.distance = max_distance;
     intersection.color = bg_color;
     intersection.inside = false;
+    intersection.object_id = -1;
 
 //    size_t intersected_idx = -1;
 
-    for (int i = 0; i < objects.size(); ++i) {
-        auto intersect_obj = objects[i]->intersect(r);
-        if (!intersect_obj) continue;
-
-        if (intersect_obj.distance > intersection.distance) {
-            continue;
+    for (int i = objects.size() - 1; i >= 0; --i) {
+        if (objects[i]->type != Primitive::Plane)
+            break;
+        auto intersect_plane = objects[i]->intersect(r);
+        if (intersect_plane && intersect_plane.distance < intersection.distance) {
+            intersection = intersect_plane;
+            intersection.object_id = i;
+            intersection.color = objects[intersection.object_id]->emission;
         }
-        intersection.object_id = i;
-        intersection.successful = true;
-        intersection.inside = intersect_obj.inside;
-        intersection.distance = intersect_obj.distance;
-        intersection.normal = intersect_obj.normal;
-        intersection.color = objects[i]->emission;
     }
+
+    auto intersect_bvh = bvh.intersect(objects, r);
+
+    if (intersect_bvh && intersect_bvh.distance < intersection.distance) {
+        intersection = intersect_bvh;
+        intersection.color = objects[intersection.object_id]->emission;
+    }
+
+//    intersection.color = objects[intersection.object_id]->emission;
+
+//    for (int i = 0; i < objects.size(); ++i) {
+//        auto intersect_obj = objects[i]->intersect(r);
+//        if (!intersect_obj) continue;
+//
+//        if (intersect_obj.distance > intersection.distance) {
+//            continue;
+//        }
+//        intersection.object_id = i;
+//        intersection.successful = true;
+//        intersection.inside = intersect_obj.inside;
+//        intersection.distance = intersect_obj.distance;
+//        intersection.normal = intersect_obj.normal;
+//        intersection.color = objects[i]->emission;
+//    }
 
     // simple check with no light or color
     if (no_color || intersection.object_id >= objects.size())

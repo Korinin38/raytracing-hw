@@ -310,18 +310,18 @@ inline bool operator!=(vector3f a, vector3f b) {
     return !(a == b);
 }
 
-inline vector3f pow(vector3f v, float power) {
+inline vector3f pow(const vector3f v, float power) {
     return {std::pow(v.x, power), std::pow(v.y, power), std::pow(v.z, power)};
 }
 
-inline float dot(vector3f a, vector3f b) {
+inline float dot(const vector3f a, const vector3f b) {
     float s = 0.f;
     for (int i = 0; i < 3; ++i)
         s += a[i] * b[i];
     return s;
 }
 
-inline vector3f cross(vector3f a, vector3f b) {
+inline vector3f cross(const vector3f a, const vector3f b) {
     return {
             a[1] * b[2] - b[1] * a[2],
             a[2] * b[0] - b[2] * a[0],
@@ -329,7 +329,7 @@ inline vector3f cross(vector3f a, vector3f b) {
     };
 }
 
-inline vector3f rotate(vector3f v, vector4f q) {
+inline vector3f rotate(const vector3f v, const vector4f q) {
     vector3f u{q.x, q.y, q.z};
     float s = q.w;
 
@@ -365,7 +365,7 @@ inline vector3f get_max_vec3f() {
 }
 
 inline vector3f get_min_vec3f() {
-    const float m = std::numeric_limits<float>::min();
+    const float m = -std::numeric_limits<float>::max();
     return {m, m, m};
 }
 

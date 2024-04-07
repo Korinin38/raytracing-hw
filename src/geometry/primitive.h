@@ -43,7 +43,7 @@ struct AABB {
         return 2.f * (size.x * size.y + size.x * size.z + size.y * size.z);
     }
 
-    bool intersect(Ray r);
+    bool intersect(Ray r) const;
 };
 
 typedef struct Intersection {
