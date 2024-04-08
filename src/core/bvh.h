@@ -11,6 +11,7 @@ struct Node {
     AABB aabb;
     size_t left = invalidKey;
     size_t right = invalidKey;
+    size_t split_dim = invalidKey;
     size_t first_primitive_id = invalidKey;
     size_t primitive_count = 0;
 };
@@ -20,7 +21,7 @@ public:
     std::vector<Node> nodes;
     void buildBVH(std::vector<primitive_sh_ptr> &primitives);
     [[nodiscard]]
-    Intersection intersect(const std::vector<primitive_sh_ptr> &primitives, Ray r, size_t node_id = 0) const;
+    Intersection intersect(const std::vector<primitive_sh_ptr> &primitives, Ray r, size_t node_id = 0, bool early_out = true) const;
 private:
 
     struct StackBuildNode {

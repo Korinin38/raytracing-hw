@@ -2,6 +2,7 @@
 
 #include <random>
 #include "vector.h"
+#include <utility>
 #include <vector>
 #include <memory>
 
@@ -61,6 +62,16 @@ public:
 private:
     std::vector<random_distribution_sh_ptr> distributions;
     std::vector<int> count;
+};
+
+class SceneDistribution : public RandomDistribution {
+public:
+    SceneDistribution(MixedDistribution &l, CosineWeightedDistribution &cos) { light = std::move(l); cosine = std::move(cos); }
+    vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
+    float pdf(vector3f point, vector3f normal, vector3f direction) override;
+private:
+    MixedDistribution light;
+    CosineWeightedDistribution cosine;
 };
 
 namespace rng {

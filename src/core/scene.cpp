@@ -59,6 +59,12 @@ Scene::Scene(const std::string &filename) {
     }
 
     bvh.buildBVH(objects);
+    std::cout << bvh.nodes.size() << " nodes in BVH." << std::endl;
+    size_t max_node_count = 0;
+    for (auto n : bvh.nodes) {
+        max_node_count = std::max(n.primitive_count, max_node_count);
+    }
+    std::cout << "At most " << max_node_count << " objects in single node." << std::endl;
 
     random_distributions_.add_distr(std::make_shared<CosineWeightedDistribution>());
 //    random_distributions_.add_distr(std::make_shared<UniformDistribution>());
