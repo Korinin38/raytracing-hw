@@ -21,9 +21,9 @@ public:
     std::vector<Node> nodes;
     void buildBVH(std::vector<primitive_sh_ptr> &primitives);
     [[nodiscard]]
-    Intersection intersect(const std::vector<primitive_sh_ptr> &primitives, Ray r, size_t node_id = 0, bool early_out = true) const;
+    Intersection intersect(const std::vector<primitive_sh_ptr> &primitives, Ray r, bool early_out = true) const;
 private:
-
+    Intersection intersectHelper (const std::vector<primitive_sh_ptr> &primitives, Ray r, size_t node_id = 0, bool early_out = true) const;
     struct StackBuildNode {
         StackBuildNode(size_t p, size_t f, size_t c) : place(p), first(f), count(c) {}
         size_t place;

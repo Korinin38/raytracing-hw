@@ -66,7 +66,7 @@ private:
 
 class SceneDistribution : public RandomDistribution {
 public:
-    SceneDistribution(MixedDistribution &l, CosineWeightedDistribution &cos) { light = std::move(l); cosine = std::move(cos); }
+    SceneDistribution(MixedDistribution &l, CosineWeightedDistribution &cos) { cosine = std::move(cos); light = l; }
     vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
 private:

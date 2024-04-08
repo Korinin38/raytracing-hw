@@ -295,7 +295,7 @@ AABB Primitive::aabb() const {
     return cache.aabb;
 }
 
-bool AABB::intersect(Ray r) const {
+std::optional<float> AABB::intersect(Ray r) const {
     // got from https://github.com/erich666/GraphicsGems/blob/master/gems/RayBox.c
     // see: https://gamedev.stackexchange.com/questions/18436/most-efficient-aabb-vs-ray-collision-algorithms
     enum {
@@ -322,7 +322,7 @@ bool AABB::intersect(Ray r) const {
         }
     }
     if (inside)
-        return true;
+        return std::make_optional(0.f);
 
     float maxT[DIMS];
 
@@ -342,15 +342,19 @@ bool AABB::intersect(Ray r) const {
         }
     }
 
-    if (maxT[whichPlane] < 0.f) return false;
+    if (maxT[whichPlane] < 0.f) return {};
 
+    vector3f coord{};
     for (int i = 0; i < DIMS; i++) {
         if (whichPlane != i) {
-            float coord = r.origin[i] + maxT[whichPlane] * r.direction[i];
-            if (coord < min[i] || coord > max[i])
-                return false;
+            coord[i] = r.origin[i] + maxT[whichPlane] * r.direction[i];
+            if (coord[i] < min[i] || coord[i] > max[i])
+                return {};
+
+        } else {
+            coord[i] = candidatePlane[i];
         }
     }
 
-    return true;
+    return std::make_optional(length(coord - r.origin));
 }

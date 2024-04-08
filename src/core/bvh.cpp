@@ -1,6 +1,8 @@
 #include "bvh.h"
 #include <algorithm>
 
+static double improvement = 0.f;
+
 namespace {
     size_t buildHelperNaive(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb, size_t first, size_t count, size_t &dim) {
         auto begin = primitives.begin() + (ptrdiff_t)first;
@@ -80,6 +82,7 @@ namespace {
 
                 float metric = ls * (float)(left_obj_count) + rs * (float)(count - left_obj_count);
                 if (metric < best) {
+                    improvement += best - metric;
                     best = metric;
                     result = begin + left_obj_count;
                     best_dim = dim;
@@ -153,11 +156,9 @@ size_t BVH::buildNode(std::vector<StackBuildNode> &nodes_q, std::vector<primitiv
     return place;
 }
 
-Intersection BVH::intersect(const std::vector<primitive_sh_ptr> &primitives, Ray r, size_t node_id, bool early_out) const {
+Intersection BVH::intersectHelper(const std::vector<primitive_sh_ptr> &primitives, Ray r, size_t node_id, bool early_out) const {
     const Node & node = nodes[node_id];
 
-    if (!node.aabb.intersect(r))
-        return {};
 
 //    // todo: remove?
 //    early_out = false;
@@ -167,31 +168,44 @@ Intersection BVH::intersect(const std::vector<primitive_sh_ptr> &primitives, Ray
 
     if (r.direction[node.split_dim] > 0) {
         if (node.left != invalidKey) {
-            Intersection a = intersect(primitives, r, node.left);
-            if (a && a.distance < intersection.distance)
-                intersection = a;
-
+            auto pre_inter = nodes[node.left].aabb.intersect(r);
+            if (pre_inter) {
+                Intersection a = intersectHelper(primitives, r, node.left);
+                if (a && a.distance < intersection.distance)
+                    intersection = a;
+            }
         }
-//        if (intersection && early_out)
-//            return intersection;
         if (node.right != invalidKey) {
-            Intersection a = intersect(primitives, r, node.right);
-            if (a && a.distance < intersection.distance)
-                intersection = a;
+            auto pre_inter = nodes[node.right].aabb.intersect(r);
+            if (pre_inter) {
+                if (early_out && pre_inter.value() > intersection.distance) {}
+                else {
+                    Intersection a = intersectHelper(primitives, r, node.right);
+                    if (a && a.distance < intersection.distance)
+                        intersection = a;
+                }
+            }
         }
     }
     else {
         if (node.right != invalidKey) {
-            Intersection a = intersect(primitives, r, node.right);
-            if (a && a.distance < intersection.distance)
-                intersection = a;
+            auto pre_inter = nodes[node.right].aabb.intersect(r);
+            if (pre_inter) {
+                Intersection a = intersectHelper(primitives, r, node.right);
+                if (a && a.distance < intersection.distance)
+                    intersection = a;
+            }
         }
-//        if (intersection && early_out)
-//            return intersection;
         if (node.left != invalidKey) {
-            Intersection a = intersect(primitives, r, node.left);
-            if (a && a.distance < intersection.distance)
-                intersection = a;
+            auto pre_inter = nodes[node.left].aabb.intersect(r);
+            if (pre_inter) {
+                if (early_out && pre_inter.value() > intersection.distance) {}
+                else {
+                    Intersection a = intersectHelper(primitives, r, node.left);
+                    if (a && a.distance < intersection.distance)
+                        intersection = a;
+                }
+            }
         }
     }
     if (!node.primitive_count)
@@ -206,6 +220,12 @@ Intersection BVH::intersect(const std::vector<primitive_sh_ptr> &primitives, Ray
     }
 
     return intersection;
+}
+
+Intersection BVH::intersect(const std::vector<primitive_sh_ptr> &primitives, Ray r, bool early_out) const {
+    if (!nodes[0].aabb.intersect(r))
+        return {};
+    return intersectHelper(primitives, r, 0, early_out);
 }
 
 void BVH::buildBVH(std::vector<primitive_sh_ptr> &primitives) {
