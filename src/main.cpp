@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     scene.render(ProgressCallback);
 #else
     scene.render();
-    ProgressCallback(100, &t);
+    ProgressCallback(100, t);
 #endif
 
     scene.draw_into(output);
