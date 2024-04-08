@@ -5,11 +5,12 @@
 #include <geometry/primitive.h>
 #include <geometry/light_source.h>
 #include <utils/base.h>
+#include <utils/timer.h>
 
 #include <string>
 #include <vector>
 
-typedef bool (*ProgressFunc)(int progress, void *userData);
+typedef std::function<bool(int, timer&)> ProgressFunc;
 
 struct Scene {
 public:

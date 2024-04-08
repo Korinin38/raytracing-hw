@@ -67,16 +67,17 @@ Scene::Scene(const std::string &filename) {
 }
 
 void Scene::render(ProgressFunc callback) const {
-    timer t;
     uniform_float_d offset(-0.5f, 0.5f);
     std::vector<vector3f> sample_canvas(camera->canvas.height() * camera->canvas.width(), {0.f, 0.f, 0.f});
-    if (callback)
-        callback(0, &t);
-    else
-        std::cout << "Render launched." << std::endl;
 
     const unsigned int canvas_size = camera->canvas.height() * camera->canvas.width();
-    unsigned int progress = 0;
+    int progress = 0;
+
+    timer t;
+    if (callback)
+        callback(progress, t);
+    else
+        std::cout << "Render launched." << std::endl;
 
     #pragma omp parallel for shared(offset, sample_canvas) schedule(guided, 16) collapse(2)
     for (int j = 0; j < camera->canvas.height(); ++j) {
@@ -96,7 +97,7 @@ void Scene::render(ProgressFunc callback) const {
             #pragma omp critical
             {
                 progress += 1;
-                callback(std::floor(100 * progress / (double)canvas_size), &t);
+                callback(std::floor(100 * progress / (double)canvas_size), t);
             }
         }
     }

@@ -1,21 +1,19 @@
-#include "core/scene.h"
-#include "utils/timer.h"
+#include <core/scene.h>
+#include <utils/timer.h>
 
 #include <iostream>
 #include <iomanip>
 
-static bool ProgressCallback(int progress, void *userData) {
-    auto t = (timer *) userData;
+static bool ProgressCallback(int progress, timer &t) {
     if (progress == 0)
-        t->restart();
-    FILE *f;
+        t.restart();
     std::cout << "\r   Render [";
     for (int i = 0; i < 10; i++) {
         std::cout << (progress / ((i + 1) * 10) ? "*" : " ");
     }
-    std::cout << "] " << progress << "% (" << t->elapsed() << " s)" << std::flush;
+    std::cout << "] " << progress << "% (" << t.elapsed() << " s)" << std::flush;
     if (progress == 100) {
-        std::cout <<"\n      " << t->elapsed() << " seconds (" << t->elapsed() * 1000 << " ms) elapsed." << std::endl;
+        std::cout <<"\n      " << t.elapsed() << " seconds (" << t.elapsed() * 1000 << " ms) elapsed." << std::endl;
     }
     return true;
 }
@@ -36,13 +34,12 @@ int main(int argc, char *argv[]) {
     std::string output;
     parse_args(argc, argv, input, output);
 
+    std::cout << "Loading scene." << std::endl;
     timer t;
     Scene scene(input);
     std::cout << "Scene loaded: " << std::setprecision(2) << t.elapsed() << " seconds." << std::endl;
 
-    std::cout << std::setprecision(6);
-    t.restart();
-
+    std::cout << std::setprecision(6) << "Rendering scene." << std::endl;
 #ifdef USE_CALLBACK
     scene.render(ProgressCallback);
 #else
