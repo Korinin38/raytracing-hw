@@ -18,25 +18,8 @@ struct Node {
 class BVH {
 public:
     std::vector<Node> nodes;
-    void buildBVH(std::vector<primitive_sh_ptr> &primitives) {
-        size_t npo = 0;
-        for (auto &p : primitives) {
-            if (p->type != Primitive::Plane)
-                ++npo;
-        }
-        auto plane_it = std::partition(primitives.begin(), primitives.end(), [](primitive_sh_ptr &p) {return (p->type != Primitive::Plane);} );
-        size_t non_plane_objects = plane_it - primitives.begin();
-
-
-        std::vector<StackBuildNode> nodes_q;
-        nodes_q.emplace_back(nodes.size(), 0, non_plane_objects);
-        nodes.emplace_back();
-        int a = 0;
-        while (!nodes_q.empty()) {
-            buildNode(nodes_q, primitives);
-            a++;
-        }
-    }
+    void buildBVH(std::vector<primitive_sh_ptr> &primitives);
+    [[nodiscard]]
     Intersection intersect(const std::vector<primitive_sh_ptr> &primitives, Ray r, size_t node_id = 0) const;
 private:
 
