@@ -38,6 +38,11 @@ struct AABB {
     }
 
     [[nodiscard]]
+    vector3f center() const {
+        return min + size() * 0.5f;
+    }
+
+    [[nodiscard]]
     float surface_area() const {
         vector3f size = this->size();
         return 2.f * (size.x * size.y + size.x * size.z + size.y * size.z);

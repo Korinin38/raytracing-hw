@@ -61,8 +61,16 @@ Scene::Scene(const std::string &filename) {
     bvh.buildBVH(objects);
     std::cout << bvh.nodes.size() << " nodes in BVH." << std::endl;
     size_t max_node_count = 0;
+    std::vector<int> node_obj_count(5, 0);
     for (auto n : bvh.nodes) {
+        if (n.primitive_count < node_obj_count.size())
+            ++node_obj_count[n.primitive_count];
         max_node_count = std::max(n.primitive_count, max_node_count);
+    }
+    std::cout << "Node object count:" << std::endl;
+    for (int i = 0; i < node_obj_count.size(); ++i) {
+        std::cout << "\t" << i<< ": " << node_obj_count[i] << std::endl;
+
     }
     std::cout << "At most " << max_node_count << " objects in single node." << std::endl;
 

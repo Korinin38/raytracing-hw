@@ -1,8 +1,6 @@
 #include "bvh.h"
 #include <algorithm>
 
-static double improvement = 0.f;
-
 namespace {
     size_t buildHelperNaive(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb, size_t first, size_t count, size_t &dim) {
         auto begin = primitives.begin() + (ptrdiff_t)first;
@@ -33,30 +31,59 @@ namespace {
 
     size_t buildHelperSAH(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb, size_t first, size_t count, size_t &best_dim) {
         const int BIN_SIZE = 1;
+
+#define ONLY_WIDEST_AXIS 1
+#if ONLY_WIDEST_AXIS
         auto begin = primitives.begin() + (ptrdiff_t)first;
         auto end = primitives.begin() + (ptrdiff_t)first + (ptrdiff_t)count;
+#endif
 
-
-//        const int bins_count = ((count - 1) / BIN_SIZE) + 1;
-        const int bins_count = count;
+        // todo: change BIN_SIZE?
+        const int bins_count = ((count - 1) / BIN_SIZE) + 1;
+//        const int bins_count = count;
         std::vector<AABB> sah_bins(bins_count);
         std::vector<float> sah_left_scan(bins_count);
         std::vector<float> sah_right_scan(bins_count);
 
-        float best = node_aabb.surface_area() * (float)count;
-        auto result = begin;
+        float best_sah = node_aabb.surface_area() * (float)count;
+        float best_split = (primitives.begin() + first)->get()->aabb().center()[2] - 1e-7;
+        auto result = primitives.begin() + first;
         best_dim = 2;
-        for (int dim = 0; dim < 3; ++dim) {
-            auto predicate = [dim](primitive_sh_ptr &a, primitive_sh_ptr &b) {
-                return ((a->aabb().max[dim] + a->aabb().min[dim]) < (b->aabb().max[dim] + b->aabb().min[dim]));
-            };
 
+#if ONLY_WIDEST_AXIS
+        int aabb_widest_axis = 0;
+        {
+            float max_size = node_aabb.size().x;
+            for (int i = 0; i < 3; ++i) {
+                if (max_size < node_aabb.size()[i]) {
+                    max_size = node_aabb.size()[i];
+                    aabb_widest_axis = i;
+                }
+            }
+        }
+        int dim = aabb_widest_axis;
+        {
+#else
+        auto vb = primitives.begin() + first;
+        auto ve = primitives.begin() + first + count;
+        std::vector<primitive_sh_ptr> nodes_sorted[3] = {std::vector<primitive_sh_ptr>(vb, ve),
+                                                         std::vector<primitive_sh_ptr>(vb, ve),
+                                                         std::vector<primitive_sh_ptr>(vb, ve)};
+        for (int dim = 0; dim < 3; ++dim) {
+            auto begin = nodes_sorted[dim].begin();
+            auto end = nodes_sorted[dim].end();
+#endif
+            auto predicate = [dim](primitive_sh_ptr &a, primitive_sh_ptr &b) {
+                return (a->aabb().center()[dim] < b->aabb().center()[dim]);
+            };
             std::sort(begin, end, predicate);
 
-//            #pragma omp parallel for shared(primitives)
+//            #pragma omp parallel for shared(primitives, sah_bins)
             for (int bin = 0; bin < bins_count; ++bin) {
-                for (auto obj = begin + bin * BIN_SIZE; obj != end; obj++) {
-                    sah_bins[bin].grow(obj->get()->aabb());
+                for (int i = 0; i < BIN_SIZE; ++i) {
+                    if (bin * BIN_SIZE + i >= count)
+                        break;
+                    sah_bins[bin].grow(primitives[first + bin * BIN_SIZE + i]->aabb());
                 }
             }
 
@@ -81,22 +108,36 @@ namespace {
                 int left_obj_count = (i + 1) * BIN_SIZE;
 
                 float metric = ls * (float)(left_obj_count) + rs * (float)(count - left_obj_count);
-                if (metric < best) {
-                    improvement += best - metric;
-                    best = metric;
-                    result = begin + left_obj_count;
+                if (metric < best_sah) {
+                    best_sah = metric;
+                    result = primitives.begin() + first + left_obj_count;
                     best_dim = dim;
+                    if (left_obj_count < count)
+                        best_split = ((result - 1)->get()->aabb().center()[dim] + result->get()->aabb().center()[dim]) * 0.5f;
                 }
             }
         }
 
-        if (best_dim != 2) {
-            auto predicate = [best_dim](primitive_sh_ptr &a, primitive_sh_ptr &b) {
-                return ((a->aabb().max[best_dim] + a->aabb().min[best_dim]) < (b->aabb().max[best_dim] + b->aabb().min[best_dim]));
-            };
-            std::sort(begin, end, predicate);
+#if !ONLY_WIDEST_AXIS
+//        if (best_dim != 2)
+        {
+//            AABB klvcbj = nodes_sorted[best_dim][(result - (primitives.begin() + first))]->aabb();
+//            float part = klvcbj.max[best_dim] + klvcbj.min[best_dim];
+//            auto predicate = [best_dim, part](primitive_sh_ptr &a) {
+//                return (a->aabb().max[best_dim] + a->aabb().min[best_dim]) < part;
+//            };
+//            auto predicate = [best_dim](primitive_sh_ptr &a, primitive_sh_ptr &b) {
+//                return ((a->aabb().max[best_dim] + a->aabb().min[best_dim]) < (b->aabb().max[best_dim] + b->aabb().min[best_dim]));
+//            };
+//            result = std::partition(primitives.begin() + first, primitives.begin() + first + count, predicate);
+            std::copy(nodes_sorted[best_dim].begin(), nodes_sorted[best_dim].end(), primitives.begin() + first);
+//            std::sort(begin, end, predicate);
         }
-        return (result - begin);
+#endif
+#undef ONLY_WIDEST_AXIS
+        auto pred = [best_dim, best_split](primitive_sh_ptr &a){ return a->aabb().center()[best_dim] < best_split; };
+        result = std::partition(begin, end, pred);
+        return (result - (primitives.begin() + first));
     }
 }
 
@@ -130,10 +171,10 @@ size_t BVH::buildNode(std::vector<StackBuildNode> &nodes_q, std::vector<primitiv
 
 //    auto partition = buildHelperNaive(primitives, cur.aabb, first, count);
 //    auto partition = buildHelperSAH(primitives, cur.aabb, first, count);
-    size_t res = buildHelperNaive(primitives, nodes[place].aabb, first, count, nodes[place].split_dim);
-    auto partition = begin + res;
-//    size_t res = buildHelperSAH(primitives, nodes[place].aabb, first, count, nodes[place].split_dim);
+//    size_t res = buildHelperNaive(primitives, nodes[place].aabb, first, count, nodes[place].split_dim);
 //    auto partition = begin + res;
+    size_t res = buildHelperSAH(primitives, nodes[place].aabb, first, count, nodes[place].split_dim);
+    auto partition = begin + res;
 
     if (partition == begin || partition == end) {
         nodes[place].first_primitive_id = first;
@@ -170,7 +211,7 @@ Intersection BVH::intersectHelper(const std::vector<primitive_sh_ptr> &primitive
         if (node.left != invalidKey) {
             auto pre_inter = nodes[node.left].aabb.intersect(r);
             if (pre_inter) {
-                Intersection a = intersectHelper(primitives, r, node.left);
+                Intersection a = intersectHelper(primitives, r, node.left, early_out);
                 if (a && a.distance < intersection.distance)
                     intersection = a;
             }
@@ -180,7 +221,7 @@ Intersection BVH::intersectHelper(const std::vector<primitive_sh_ptr> &primitive
             if (pre_inter) {
                 if (early_out && pre_inter.value() > intersection.distance) {}
                 else {
-                    Intersection a = intersectHelper(primitives, r, node.right);
+                    Intersection a = intersectHelper(primitives, r, node.right, early_out);
                     if (a && a.distance < intersection.distance)
                         intersection = a;
                 }
@@ -191,7 +232,7 @@ Intersection BVH::intersectHelper(const std::vector<primitive_sh_ptr> &primitive
         if (node.right != invalidKey) {
             auto pre_inter = nodes[node.right].aabb.intersect(r);
             if (pre_inter) {
-                Intersection a = intersectHelper(primitives, r, node.right);
+                Intersection a = intersectHelper(primitives, r, node.right, early_out);
                 if (a && a.distance < intersection.distance)
                     intersection = a;
             }
