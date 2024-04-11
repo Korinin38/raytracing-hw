@@ -1,7 +1,10 @@
 #pragma once
 
+#include <geometry/primitive.h>
+#include <core/bvh.h>
+#include <utils/vector.h>
+
 #include <random>
-#include "vector.h"
 #include <utility>
 #include <vector>
 #include <memory>
@@ -42,12 +45,14 @@ public:
 };
 
 class Primitive;
+class Intersection;
 
 class LightDistribution : public RandomDistribution {
 public:
     explicit LightDistribution(const Primitive &object);
     vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
+    inline float pdfWithHint(vector3f point, vector3f direction, Intersection hint);
 private:
     const Primitive *primitive;
 };
@@ -58,19 +63,30 @@ public:
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
     void add_distr(const random_distribution_sh_ptr& dist);
     [[nodiscard]] size_t get_size() const;
-    ~MixedDistribution();
 private:
     std::vector<random_distribution_sh_ptr> distributions;
-    std::vector<int> count;
+};
+
+class ManyLightsDistribution : public RandomDistribution {
+public:
+    explicit ManyLightsDistribution(const std::vector<primitive_sh_ptr>& primitives);
+    vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
+    float pdf(vector3f point, vector3f normal, vector3f direction) override;
+//    void add_distr(const random_distribution_sh_ptr& dist);
+//    [[nodiscard]] size_t get_size() const;
+private:
+    std::vector<primitive_sh_ptr> objects;
+    std::vector<LightDistribution> distributions;
+    BVH bvh;
 };
 
 class SceneDistribution : public RandomDistribution {
 public:
-    SceneDistribution(MixedDistribution &l, CosineWeightedDistribution &cos) { cosine = std::move(cos); light = l; }
+    explicit SceneDistribution(const std::vector<primitive_sh_ptr>& light_objects) : light(light_objects) {};
     vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
 private:
-    MixedDistribution light;
+    ManyLightsDistribution light;
     CosineWeightedDistribution cosine;
 };
 

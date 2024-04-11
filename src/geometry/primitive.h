@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/base.h"
+#include <utils/vector.h>
 
 #include <fstream>
 #include <optional>
@@ -13,7 +13,7 @@ struct Ray;
 
 typedef std::shared_ptr<Primitive> primitive_sh_ptr;
 
-struct AABB {
+typedef struct AABB {
     vector3f min = get_max_vec3f();
     vector3f max = get_min_vec3f();
 
@@ -49,7 +49,7 @@ struct AABB {
     }
 
     std::optional<float> intersect(Ray r) const;
-};
+} AABB;
 
 typedef struct Intersection {
     bool successful = false;

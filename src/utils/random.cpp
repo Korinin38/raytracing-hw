@@ -127,14 +127,11 @@ vector3f LightDistribution::sample(vector3f point, vector3f normal, Engine &rng)
 static float a = 0.f;
 static int a_times = 0;
 
-float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction) {
+float LightDistribution::pdfWithHint(vector3f point, vector3f direction, Intersection hint) {
     float probability[2] = {0, 0};
     Intersection intersection[2];
+    intersection[0] = hint;
 
-    intersection[0] = primitive->intersect({point, direction});
-    if (!intersection[0]) {
-        return 0.f;
-    }
     if (primitive->type != Primitive::Triangle) {
         intersection[1] = primitive->intersect(
                 {point + direction * intersection[0].distance + direction * step, direction});
@@ -142,7 +139,6 @@ float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction
             intersection[1].distance += intersection[0].distance;
         }
     }
-
 
     switch (primitive->type) {
         case Primitive::Box: {
@@ -169,8 +165,8 @@ float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction
                     const int f1 = (f + 1) % 3;
                     const int f2 = (f + 2) % 3;
                     area_squared += sphere_normal[f0] * sphere_normal[f0]
-                                  * ellipsoid_radius[f1] * ellipsoid_radius[f1]
-                                  * ellipsoid_radius[f2] * ellipsoid_radius[f2];
+                                    * ellipsoid_radius[f1] * ellipsoid_radius[f1]
+                                    * ellipsoid_radius[f2] * ellipsoid_radius[f2];
                 }
 
                 probability[i] = 0.25f * M_1_PIf32 / std::sqrt(area_squared);
@@ -195,9 +191,18 @@ float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction
     return res;
 }
 
+float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction) {
+    Intersection intersection;
+
+    intersection= primitive->intersect({point, direction});
+    if (!intersection) {
+        return 0.f;
+    }
+    return pdfWithHint(point, direction, intersection);
+}
+
 void MixedDistribution::add_distr(const random_distribution_sh_ptr& dist) {
     distributions.push_back(dist);
-    count.push_back(0);
 }
 
 vector3f MixedDistribution::sample(vector3f point, vector3f normal, Engine &rng) {
@@ -206,7 +211,6 @@ vector3f MixedDistribution::sample(vector3f point, vector3f normal, Engine &rng)
     int sample = std::floor((UniformDistribution::sample(rng) + 1.f) * 0.5f * (float)distributions.size());
     if (sample == distributions.size())
         sample -= 1;
-    count[sample]++;
     return distributions[sample]->sample(point, normal, rng);
 }
 
@@ -224,17 +228,47 @@ size_t MixedDistribution::get_size() const {
     return distributions.size();
 }
 
-MixedDistribution::~MixedDistribution() {
-//    std::cout << "Calls:\n";
-//    for (int i = 0; i < distributions.size(); ++i) {
-//        std::cout << "\t";
-//        if (dynamic_cast<LightDistribution*>(distributions[i].get())) {
-//            std::cout << "Light: ";
-//        } else if (dynamic_cast<MixedDistribution*>(distributions[i].get())) {
-//            std::cout << "Mix: ";
-//        } else {
-//            std::cout << "Cos: ";
-//        }
-//        std::cout << count[i] << std::endl;
-//    }
+ManyLightsDistribution::ManyLightsDistribution(const std::vector<primitive_sh_ptr>& primitives) {
+    for (const auto& p : primitives) {
+        if (!p->emissive() || p->type == Primitive::Plane)
+            continue;
+        objects.push_back(p);
+    }
+    bvh.buildBVH(objects);
+    for (auto &o: objects) {
+        distributions.emplace_back(*o);
+    }
+}
+
+vector3f ManyLightsDistribution::sample(vector3f point, vector3f normal, Engine &rng) {
+    if (distributions.empty())
+        throw std::runtime_error("No distributions to sample from");
+    int sample = std::floor((UniformDistribution::sample(rng) + 1.f) * 0.5f * (float)distributions.size());
+    if (sample == distributions.size())
+        sample -= 1;
+    return distributions[sample].sample(point, normal, rng);
+}
+
+float ManyLightsDistribution::pdf(vector3f point, vector3f normal, vector3f direction) {
+    if (distributions.empty())
+        throw std::runtime_error("No distributions to sample from");
+    float prob = 0.f;
+    std::vector<Intersection> intersections = bvh.intersectAll(objects, {point, direction});
+    for (auto &i : intersections) {
+        LightDistribution &d = distributions[i.object_id];
+        prob += d.pdfWithHint(point, direction, i);
+    }
+    return prob / (float)distributions.size();
+}
+
+vector3f SceneDistribution::sample(vector3f point, vector3f normal, Engine &rng) {
+    float sample = UniformDistribution::sample(rng);
+    if (sample < 0.f)
+        return cosine.sample(point, normal, rng);
+    else
+        return light.sample(point, normal, rng);
+}
+
+float SceneDistribution::pdf(vector3f point, vector3f normal, vector3f direction) {
+    return cosine.pdf(point, normal, direction) + light.pdf(point, normal, direction);
 }

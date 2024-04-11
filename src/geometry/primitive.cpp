@@ -1,5 +1,6 @@
 #include "primitive.h"
 
+#include <vector>
 #include <string>
 #include <cmath>
 #include <sstream>
