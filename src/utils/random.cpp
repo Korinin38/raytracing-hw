@@ -224,7 +224,7 @@ float MixedDistribution::pdf(vector3f point, vector3f normal, vector3f direction
     return prob / (float)distributions.size();
 }
 
-size_t MixedDistribution::get_size() const {
+size_t MixedDistribution::size() const {
     return distributions.size();
 }
 
@@ -234,6 +234,8 @@ ManyLightsDistribution::ManyLightsDistribution(const std::vector<primitive_sh_pt
             continue;
         objects.push_back(p);
     }
+    if (objects.empty())
+        return;
     bvh.buildBVH(objects);
     for (auto &o: objects) {
         distributions.emplace_back(*o);

@@ -64,7 +64,7 @@ public:
     vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
     void add_distr(const random_distribution_sh_ptr& dist);
-    [[nodiscard]] size_t get_size() const;
+    [[nodiscard]] size_t size() const;
 private:
     std::vector<random_distribution_sh_ptr> distributions;
 };
@@ -75,7 +75,7 @@ public:
     vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
 //    void add_distr(const random_distribution_sh_ptr& dist);
-//    [[nodiscard]] size_t get_size() const;
+//    [[nodiscard]] size_t size() const;
     size_t size() const;
 private:
     std::vector<primitive_sh_ptr> objects;

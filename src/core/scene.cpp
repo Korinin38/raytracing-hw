@@ -76,7 +76,7 @@ Scene::Scene(const std::string &filename) {
 
     random_distributions_ = std::make_shared<SceneDistribution>(objects);
 //    random_distributions_.add_distr(std::make_shared<UniformDistribution>());
-//    if (light_distr->get_size() > 0)
+//    if (light_distr->size() > 0)
 //        random_distributions_.add_distr(light_distr);
 }
 
