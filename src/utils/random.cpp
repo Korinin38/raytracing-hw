@@ -270,5 +270,5 @@ vector3f SceneDistribution::sample(vector3f point, vector3f normal, Engine &rng)
 }
 
 float SceneDistribution::pdf(vector3f point, vector3f normal, vector3f direction) {
-    return cosine.pdf(point, normal, direction) + light.pdf(point, normal, direction);
+    return (cosine.pdf(point, normal, direction) + light.pdf(point, normal, direction)) * 0.5f;
 }

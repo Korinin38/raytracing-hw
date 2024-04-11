@@ -18,8 +18,10 @@ typedef std::minstd_rand Engine;
 
 class RandomDistribution;
 class MixedDistribution;
+class SceneDistribution;
 typedef std::shared_ptr<RandomDistribution> random_distribution_sh_ptr;
 typedef std::shared_ptr<MixedDistribution> mixed_distribution_sh_ptr;
+typedef std::shared_ptr<SceneDistribution> scene_distribution_sh_ptr;
 
 class RandomDistribution {
 public:

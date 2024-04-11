@@ -74,10 +74,10 @@ Scene::Scene(const std::string &filename) {
     }
     std::cout << "At most " << max_node_count << " objects in single node." << std::endl;
 
-    random_distributions_.add_distr(std::make_shared<CosineWeightedDistribution>());
+    random_distributions_ = std::make_shared<SceneDistribution>(objects);
 //    random_distributions_.add_distr(std::make_shared<UniformDistribution>());
-    if (light_distr->get_size() > 0)
-        random_distributions_.add_distr(light_distr);
+//    if (light_distr->get_size() > 0)
+//        random_distributions_.add_distr(light_distr);
 }
 
 void Scene::render(ProgressFunc callback) const {
@@ -93,7 +93,7 @@ void Scene::render(ProgressFunc callback) const {
     else
         std::cout << "Render launched." << std::endl;
 
-    #pragma omp parallel for shared(offset, sample_canvas) schedule(guided, 16) collapse(2)
+    #pragma omp parallel for shared(t, offset, sample_canvas) schedule(guided, 16) collapse(2)
     for (int j = 0; j < camera->canvas.height(); ++j) {
         for (int i = 0; i < camera->canvas.width(); ++i) {
             Engine rng = rng::get_generator(j * camera->canvas.width() + i);
@@ -196,11 +196,11 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
                 vector3f dir{};
                 float pdf = 0.f;
                 float cos;
-                dir = random_distributions_.sample(pos, intersection.normal, rng);
+                dir = random_distributions_->sample(pos, intersection.normal, rng);
                 cos = dot(dir, intersection.normal);
                 if (cos <= 0.f)
                     break;
-                pdf = random_distributions_.pdf(pos, intersection.normal, dir);
+                pdf = random_distributions_->pdf(pos, intersection.normal, dir);
                 if (pdf <= 0.f || isnanf(pdf))
                     break;
                 Ray reflect_ray(pos + dir * step, dir);

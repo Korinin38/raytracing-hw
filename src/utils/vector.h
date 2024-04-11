@@ -68,7 +68,8 @@ inline float float_from_string(const std::string &s, size_t pos, size_t *idx = n
     size_t end_pos = s.find(' ', pos);
     std::string raw_str = s.substr(pos, end_pos - pos);
 
-    return std::stof(raw_str, idx);
+    double res = std::stod(raw_str, idx);
+    return (float)res;
 }
 
 // extracts ints from string of format "X Y"

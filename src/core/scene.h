@@ -32,5 +32,5 @@ public:
 private:
     const float gamma_ = 1.f / 2.2f;
     class SceneParser;
-    mutable MixedDistribution random_distributions_;
+    mutable scene_distribution_sh_ptr random_distributions_;
 };
