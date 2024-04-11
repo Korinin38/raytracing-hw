@@ -152,13 +152,13 @@ size_t BVH::buildNode(std::vector<StackBuildNode> &nodes_q, std::vector<primitiv
     size_t count = stack.count;
 
     if (count == 0)
-        throw std::runtime_error("What?");
+        throw std::runtime_error("No primitives for node " + std::to_string(count));
 
     auto begin = primitives.begin() + (ptrdiff_t)first;
     auto end = primitives.begin() + (ptrdiff_t)first + (ptrdiff_t)count;
 
     if ((ptrdiff_t)first + (ptrdiff_t)count > primitives.size())
-        throw std::runtime_error("What?");
+        throw std::runtime_error("Node range beyond array borders");
     for (auto it = begin; it != end; ++it) {
         nodes[place].aabb.grow(it->get()->aabb());
     }

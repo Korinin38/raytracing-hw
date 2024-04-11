@@ -76,6 +76,7 @@ public:
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
 //    void add_distr(const random_distribution_sh_ptr& dist);
 //    [[nodiscard]] size_t get_size() const;
+    size_t size() const;
 private:
     std::vector<primitive_sh_ptr> objects;
     std::vector<LightDistribution> distributions;

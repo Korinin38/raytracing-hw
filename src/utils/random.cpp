@@ -261,14 +261,20 @@ float ManyLightsDistribution::pdf(vector3f point, vector3f normal, vector3f dire
     return prob / (float)distributions.size();
 }
 
+size_t ManyLightsDistribution::size() const {
+    return distributions.size();
+}
+
 vector3f SceneDistribution::sample(vector3f point, vector3f normal, Engine &rng) {
     float sample = UniformDistribution::sample(rng);
-    if (sample < 0.f)
+    if (sample < 0.f || !light.size())
         return cosine.sample(point, normal, rng);
     else
         return light.sample(point, normal, rng);
 }
 
 float SceneDistribution::pdf(vector3f point, vector3f normal, vector3f direction) {
+    if (!light.size())
+        return cosine.pdf(point, normal, direction);
     return (cosine.pdf(point, normal, direction) + light.pdf(point, normal, direction)) * 0.5f;
 }
