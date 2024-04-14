@@ -3,11 +3,10 @@ project(solution)
 
 set(CMAKE_CXX_STANDARD 17)
 
-include_directories(${CMAKE_SOURCE_DIR}/src )
-
 find_package(OpenMP)
 
 option(USE_CALLBACK "display progress and time" OFF)
+add_subdirectory(thirdparty)
 
 add_executable(solution
         src/main.cpp
@@ -30,8 +29,11 @@ add_executable(solution
         src/core/bvh.cpp
         src/core/bvh.h)
 
+target_include_directories(solution PUBLIC ${CMAKE_SOURCE_DIR}/src )
+target_include_directories(solution PUBLIC ${CMAKE_SOURCE_DIR}/thirdparty)
+
 if (USE_CALLBACK)
     target_compile_definitions(solution PRIVATE "USE_CALLBACK")
 endif()
 
-target_link_libraries(solution PRIVATE OpenMP::OpenMP_CXX)
+target_link_libraries(solution PRIVATE OpenMP::OpenMP_CXX rapidjson)

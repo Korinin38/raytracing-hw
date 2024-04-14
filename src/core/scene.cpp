@@ -1,6 +1,7 @@
 #include "scene.h"
-#include "utils/base.h"
-#include "utils/timer.h"
+#include <utils/base.h>
+#include <utils/timer.h>
+#include <rapidjson/document.h>
 
 #include <iostream>
 #include <fstream>
@@ -276,6 +277,92 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
     }
     return intersection;
 }
+
+//Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
+//    vector2i cam_canvas{};
+//    vector3f cam_position{};
+//    vector3f cam_axes[3];
+//    float    cam_fov_x;
+//
+//    std::ifstream in(filename);
+//    if (!in)
+//        throw std::runtime_error("File open error");
+//
+//    int parse_stages = 0;
+//    std::string line;
+//
+//    // scene parameters
+//    while (std::getline(in, line)) {
+//        std::stringstream ss(line);
+//
+//        std::string cmd;
+//        ss >> cmd;
+//        if (cmd.empty())
+//            continue;
+//
+//        ParseStage stage = get_parse_stage(cmd);
+//        parse_stages |= stage;
+//        switch (stage) {
+//            case UNKNOWN:
+//                if (!scene.objects.empty() && scene.objects.back()->parse(line))
+//                    break;
+//                if (!scene.light.empty() && scene.light.back()->parse(line))
+//                    break;
+//
+//                std::cout << "Warning: unknown command: " << cmd << std::endl;
+//                break;
+//            case DIMENSIONS:
+//                parse_stages |= DIMENSIONS;
+//                cam_canvas = vec2i_from_string(line, cmd.length() + 1);
+//                break;
+//            case BG_COLOR:
+//                parse_stages |= BG_COLOR;
+//                scene.bg_color = vec3f_from_string(line, cmd.length() + 1);
+//                break;
+//            case CAMERA_POSITION:
+//                parse_stages |= CAMERA_POSITION;
+//                cam_position = vec3f_from_string(line, cmd.length() + 1);
+//                break;
+//            case CAMERA_RIGHT:
+//                parse_stages |= CAMERA_RIGHT;
+//                cam_axes[0] = normal(vec3f_from_string(line, cmd.length() + 1));
+//                break;
+//            case CAMERA_UP:
+//                parse_stages |= CAMERA_UP;
+//                cam_axes[1] = normal(vec3f_from_string(line, cmd.length() + 1));
+//                break;
+//            case CAMERA_FORWARD:
+//                parse_stages |= CAMERA_FORWARD;
+//                cam_axes[2] = normal(vec3f_from_string(line, cmd.length() + 1));
+//                break;
+//            case CAMERA_FOV_X:
+//                parse_stages |= ParseStage::CAMERA_FOV_X;
+//                cam_fov_x = float_from_string(line, cmd.length() + 1);
+//                break;
+//            case AMBIENT_LIGHT:
+//                scene.ambient = vec3f_from_string(line, cmd.length() + 1);
+//                break;
+//            case RAY_DEPTH:
+//                scene.ray_depth = int_from_string(line, cmd.length() + 1);
+//                break;
+//            case SAMPLES:
+//                scene.samples = int_from_string(line, cmd.length() + 1);
+//                break;
+//            case NEW_PRIMITIVE:
+//                scene.objects.emplace_back(new Primitive());
+//                break;
+//            case NEW_LIGHT:
+//                scene.light.emplace_back(new LightSource());
+//                break;
+//            case READY:
+//                break;
+//        }
+//    }
+//    if (parse_stages != ParseStage::READY) {
+//        throw std::runtime_error("Wrong file format: " + filename);
+//    }
+//    scene.camera = std::make_unique<Camera>(cam_canvas, cam_position, cam_axes, cam_fov_x);
+//}
 
 Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
     vector2i cam_canvas{};
