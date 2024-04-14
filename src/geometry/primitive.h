@@ -122,6 +122,8 @@ public:
     Ray(vector3f p, vector3f d);
     vector3f origin;
     vector3f direction;
+    // 1 / direction used for speedup
+    vector3f inv_direction;
 
     // amount of jumps possible
     int power = 1;

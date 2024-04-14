@@ -8,78 +8,9 @@
 #include <sstream>
 #include <memory>
 #include <cmath>
+#include <utility>
 
 const float step = 1e-4;
-
-class Scene::SceneParser {
-public:
-    SceneParser(Scene &scene, const std::string &filename);
-};
-
-enum ParseStage {
-    UNKNOWN =           0,
-    AMBIENT_LIGHT =     5,
-    RAY_DEPTH =         6,
-    NEW_PRIMITIVE =     7,
-    NEW_LIGHT =         9,
-    SAMPLES =           10,
-
-    DIMENSIONS =        (1 << 0),
-    BG_COLOR =          (1 << 1),
-    CAMERA_POSITION =   (1 << 2),
-    CAMERA_RIGHT =      (1 << 3),
-    CAMERA_UP =         (1 << 4),
-    CAMERA_FORWARD =    (1 << 5),
-    CAMERA_FOV_X =      (1 << 6),
-    READY =             (1 << 7) - 1
-};
-
-inline ParseStage get_parse_stage(const std::string& cmd) {
-    if (cmd == "DIMENSIONS")        return DIMENSIONS; else
-    if (cmd == "BG_COLOR")          return BG_COLOR; else
-    if (cmd == "CAMERA_POSITION")   return CAMERA_POSITION; else
-    if (cmd == "CAMERA_RIGHT")      return CAMERA_RIGHT; else
-    if (cmd == "CAMERA_UP")         return CAMERA_UP; else
-    if (cmd == "CAMERA_FORWARD")    return CAMERA_FORWARD; else
-    if (cmd == "CAMERA_FOV_X")      return CAMERA_FOV_X; else
-    if (cmd == "AMBIENT_LIGHT")     return AMBIENT_LIGHT; else
-    if (cmd == "RAY_DEPTH")         return RAY_DEPTH; else
-    if (cmd == "SAMPLES")           return SAMPLES; else
-    if (cmd == "NEW_PRIMITIVE")     return NEW_PRIMITIVE; else
-    if (cmd == "NEW_LIGHT")         return NEW_LIGHT; else
-                                    return UNKNOWN;
-}
-
-Scene::Scene(const std::string &filename) {
-    (SceneParser(*this, filename));
-
-    mixed_distribution_sh_ptr light_distr = std::make_shared<MixedDistribution>();
-    for (const auto& o : objects) {
-        if (o->emissive() && o->type != Primitive::Plane)
-            light_distr->add_distr(std::make_shared<LightDistribution>(*o));
-    }
-
-    bvh.buildBVH(objects);
-    std::cout << bvh.nodes.size() << " nodes in BVH." << std::endl;
-    size_t max_node_count = 0;
-    std::vector<int> node_obj_count(5, 0);
-    for (auto n : bvh.nodes) {
-        if (n.primitive_count < node_obj_count.size())
-            ++node_obj_count[n.primitive_count];
-        max_node_count = std::max(n.primitive_count, max_node_count);
-    }
-    std::cout << "Node object count:" << std::endl;
-    for (int i = 0; i < node_obj_count.size(); ++i) {
-        std::cout << "\t" << i<< ": " << node_obj_count[i] << std::endl;
-
-    }
-    std::cout << "At most " << max_node_count << " objects in single node." << std::endl;
-
-    random_distributions_ = std::make_shared<SceneDistribution>(objects);
-//    random_distributions_.add_distr(std::make_shared<UniformDistribution>());
-//    if (light_distr->size() > 0)
-//        random_distributions_.add_distr(light_distr);
-}
 
 void Scene::render(ProgressFunc callback) const {
     uniform_float_d offset(-0.5f, 0.5f);
@@ -278,174 +209,41 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
     return intersection;
 }
 
-//Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
-//    vector2i cam_canvas{};
-//    vector3f cam_position{};
-//    vector3f cam_axes[3];
-//    float    cam_fov_x;
-//
-//    std::ifstream in(filename);
-//    if (!in)
-//        throw std::runtime_error("File open error");
-//
-//    int parse_stages = 0;
-//    std::string line;
-//
-//    // scene parameters
-//    while (std::getline(in, line)) {
-//        std::stringstream ss(line);
-//
-//        std::string cmd;
-//        ss >> cmd;
-//        if (cmd.empty())
-//            continue;
-//
-//        ParseStage stage = get_parse_stage(cmd);
-//        parse_stages |= stage;
-//        switch (stage) {
-//            case UNKNOWN:
-//                if (!scene.objects.empty() && scene.objects.back()->parse(line))
-//                    break;
-//                if (!scene.light.empty() && scene.light.back()->parse(line))
-//                    break;
-//
-//                std::cout << "Warning: unknown command: " << cmd << std::endl;
-//                break;
-//            case DIMENSIONS:
-//                parse_stages |= DIMENSIONS;
-//                cam_canvas = vec2i_from_string(line, cmd.length() + 1);
-//                break;
-//            case BG_COLOR:
-//                parse_stages |= BG_COLOR;
-//                scene.bg_color = vec3f_from_string(line, cmd.length() + 1);
-//                break;
-//            case CAMERA_POSITION:
-//                parse_stages |= CAMERA_POSITION;
-//                cam_position = vec3f_from_string(line, cmd.length() + 1);
-//                break;
-//            case CAMERA_RIGHT:
-//                parse_stages |= CAMERA_RIGHT;
-//                cam_axes[0] = normal(vec3f_from_string(line, cmd.length() + 1));
-//                break;
-//            case CAMERA_UP:
-//                parse_stages |= CAMERA_UP;
-//                cam_axes[1] = normal(vec3f_from_string(line, cmd.length() + 1));
-//                break;
-//            case CAMERA_FORWARD:
-//                parse_stages |= CAMERA_FORWARD;
-//                cam_axes[2] = normal(vec3f_from_string(line, cmd.length() + 1));
-//                break;
-//            case CAMERA_FOV_X:
-//                parse_stages |= ParseStage::CAMERA_FOV_X;
-//                cam_fov_x = float_from_string(line, cmd.length() + 1);
-//                break;
-//            case AMBIENT_LIGHT:
-//                scene.ambient = vec3f_from_string(line, cmd.length() + 1);
-//                break;
-//            case RAY_DEPTH:
-//                scene.ray_depth = int_from_string(line, cmd.length() + 1);
-//                break;
-//            case SAMPLES:
-//                scene.samples = int_from_string(line, cmd.length() + 1);
-//                break;
-//            case NEW_PRIMITIVE:
-//                scene.objects.emplace_back(new Primitive());
-//                break;
-//            case NEW_LIGHT:
-//                scene.light.emplace_back(new LightSource());
-//                break;
-//            case READY:
-//                break;
-//        }
-//    }
-//    if (parse_stages != ParseStage::READY) {
-//        throw std::runtime_error("Wrong file format: " + filename);
-//    }
-//    scene.camera = std::make_unique<Camera>(cam_canvas, cam_position, cam_axes, cam_fov_x);
-//}
+Scene::Scene(camera_uniq_ptr &camera_, std::vector<primitive_sh_ptr> objects_, vector3f bg_color_, int ray_depth_, int samples_, vector3f ambient_) {
+    this->camera = std::move(camera_);
+    this->objects = std::move(objects_);
+    this->bg_color = bg_color_;
+    this->ray_depth = ray_depth_;
+    this->samples = samples_;
+    this->ambient = ambient_;
 
-Scene::SceneParser::SceneParser(Scene &scene, const std::string &filename) {
-    vector2i cam_canvas{};
-    vector3f cam_position{};
-    vector3f cam_axes[3];
-    float    cam_fov_x;
-
-    std::ifstream in(filename);
-    if (!in)
-        throw std::runtime_error("File open error");
-
-    int parse_stages = 0;
-    std::string line;
-
-    // scene parameters
-    while (std::getline(in, line)) {
-        std::stringstream ss(line);
-
-        std::string cmd;
-        ss >> cmd;
-        if (cmd.empty())
-            continue;
-
-        ParseStage stage = get_parse_stage(cmd);
-        parse_stages |= stage;
-        switch (stage) {
-            case UNKNOWN:
-                if (!scene.objects.empty() && scene.objects.back()->parse(line))
-                    break;
-                if (!scene.light.empty() && scene.light.back()->parse(line))
-                    break;
-
-                std::cout << "Warning: unknown command: " << cmd << std::endl;
-                break;
-            case DIMENSIONS:
-                parse_stages |= DIMENSIONS;
-                cam_canvas = vec2i_from_string(line, cmd.length() + 1);
-                break;
-            case BG_COLOR:
-                parse_stages |= BG_COLOR;
-                scene.bg_color = vec3f_from_string(line, cmd.length() + 1);
-                break;
-            case CAMERA_POSITION:
-                parse_stages |= CAMERA_POSITION;
-                cam_position = vec3f_from_string(line, cmd.length() + 1);
-                break;
-            case CAMERA_RIGHT:
-                parse_stages |= CAMERA_RIGHT;
-                cam_axes[0] = normal(vec3f_from_string(line, cmd.length() + 1));
-                break;
-            case CAMERA_UP:
-                parse_stages |= CAMERA_UP;
-                cam_axes[1] = normal(vec3f_from_string(line, cmd.length() + 1));
-                break;
-            case CAMERA_FORWARD:
-                parse_stages |= CAMERA_FORWARD;
-                cam_axes[2] = normal(vec3f_from_string(line, cmd.length() + 1));
-                break;
-            case CAMERA_FOV_X:
-                parse_stages |= ParseStage::CAMERA_FOV_X;
-                cam_fov_x = float_from_string(line, cmd.length() + 1);
-                break;
-            case AMBIENT_LIGHT:
-                scene.ambient = vec3f_from_string(line, cmd.length() + 1);
-                break;
-            case RAY_DEPTH:
-                scene.ray_depth = int_from_string(line, cmd.length() + 1);
-                break;
-            case SAMPLES:
-                scene.samples = int_from_string(line, cmd.length() + 1);
-                break;
-            case NEW_PRIMITIVE:
-                scene.objects.emplace_back(new Primitive());
-                break;
-            case NEW_LIGHT:
-                scene.light.emplace_back(new LightSource());
-                break;
-            case READY:
-                break;
-        }
+    mixed_distribution_sh_ptr light_distr = std::make_shared<MixedDistribution>();
+    for (const auto& o : objects) {
+        if (o->emissive() && o->type != Primitive::Plane)
+            light_distr->add_distr(std::make_shared<LightDistribution>(*o));
     }
-    if (parse_stages != ParseStage::READY) {
-        throw std::runtime_error("Wrong file format: " + filename);
+
+    bvh.buildBVH(objects);
+    std::cout << bvh.nodes.size() << " nodes in BVH." << std::endl;
+    size_t max_node_count = 0;
+    std::vector<int> node_obj_count(5, 0);
+    for (auto n : bvh.nodes) {
+        if (n.primitive_count < node_obj_count.size())
+            ++node_obj_count[n.primitive_count];
+        max_node_count = std::max(n.primitive_count, max_node_count);
     }
-    scene.camera = std::make_unique<Camera>(cam_canvas, cam_position, cam_axes, cam_fov_x);
+    std::cout << "Node object count:" << std::endl;
+    for (int i = 0; i < node_obj_count.size(); ++i) {
+        std::cout << "\t" << i<< ": " << node_obj_count[i] << std::endl;
+
+    }
+    std::cout << "At most " << max_node_count << " objects in single node." << std::endl;
+
+    random_distributions_ = std::make_shared<SceneDistribution>(objects);
+//    mixed_distribution_sh_ptr m = std::make_shared<MixedDistribution>();
+////    m->add_distr(std::make_shared<UniformDistribution>());
+//    m->add_distr(std::make_shared<CosineWeightedDistribution>());
+//    if (light_distr->size() > 0)
+//        m->add_distr(light_distr);
+//    random_distributions_ = m;
 }

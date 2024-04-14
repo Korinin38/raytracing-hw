@@ -69,6 +69,7 @@ void Primitive::transformRay(Ray &ray) const {
 
 Ray::Ray(vector3f p, vector3f d) : origin(p), direction(d) {
     normalize(direction);
+    inv_direction = vector3f{1.f, 1.f, 1.f} / direction;
 }
 
 Intersection Primitive::intersect(Ray ray) const {
@@ -80,8 +81,8 @@ Intersection Primitive::intersect(Ray ray) const {
             vector3f t1{};
             vector3f t2{};
             for (int i = 0; i < 3; ++i) {
-                t1[i] = (-size_[i] - ray.origin[i]) / ray.direction[i];
-                t2[i] = (size_[i] - ray.origin[i]) / ray.direction[i];
+                t1[i] = (-size_[i] - ray.origin[i]) * ray.inv_direction[i];
+                t2[i] = (size_[i] - ray.origin[i]) * ray.inv_direction[i];
                 if (t1[i] > t2[i])
                     std::swap(t1[i], t2[i]);
             }
@@ -330,7 +331,7 @@ std::optional<float> AABB::intersect(Ray r) const {
     // Calculate T distances to candidate planes
     for (int i = 0; i < DIMS; i++)
         if (quadrant[i] != Mid && r.direction[i] !=0.f)
-            maxT[i] = (candidatePlane[i] - r.origin[i]) / r.direction[i];
+            maxT[i] = (candidatePlane[i] - r.origin[i]) * r.inv_direction[i];
         else
             maxT[i] = -1.;
 

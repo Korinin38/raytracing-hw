@@ -1,4 +1,5 @@
 #include <core/scene.h>
+#include <io/scene_parser.h>
 #include <utils/timer.h>
 
 #include <iostream>
@@ -36,7 +37,7 @@ int main(int argc, char *argv[]) {
 
     std::cout << "Loading scene." << std::endl;
     timer t;
-    Scene scene(input);
+    Scene scene = parse_scene_naive(input);
     std::cout << "Scene loaded: " << std::setprecision(2) << t.elapsed() << " seconds." << std::endl;
 
     std::cout << std::setprecision(6) << "Rendering scene." << std::endl;

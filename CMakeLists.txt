@@ -27,7 +27,9 @@ add_executable(solution
         src/utils/random.h
         src/utils/random.cpp
         src/core/bvh.cpp
-        src/core/bvh.h)
+        src/core/bvh.h
+        src/io/scene_parser.cpp
+        src/io/scene_parser.h)
 
 target_include_directories(solution PUBLIC ${CMAKE_SOURCE_DIR}/src )
 target_include_directories(solution PUBLIC ${CMAKE_SOURCE_DIR}/thirdparty)
