@@ -48,6 +48,15 @@ typedef struct AABB {
         return 2.f * (size.x * size.y + size.x * size.z + size.y * size.z);
     }
 
+    bool in(vector3f point) const {
+        bool a = true;
+        for (int i = 0; i < 3; ++i) {
+            a &= (point[i] >= min[i]);
+            a &= (point[i] <= max[i]);
+        }
+        return a;
+    }
+
     std::optional<float> intersect(Ray r) const;
 } AABB;
 

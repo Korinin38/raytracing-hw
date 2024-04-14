@@ -215,6 +215,21 @@ void BVH::buildBVH(std::vector<primitive_sh_ptr> &primitives) {
         buildNode(nodes_q, primitives);
         a++;
     }
+
+#ifndef NDEBUG
+    for (int j = 0; j < nodes.size(); ++j) {
+        auto &node = nodes[j];
+        if (node.primitive_count == 0)
+            continue;
+        const AABB &n_aabb = node.aabb;
+        for (int i = node.first_primitive_id; i < node.first_primitive_id + node.primitive_count; ++i) {
+            const AABB &p_aabb = primitives[i]->aabb();
+            if (!(n_aabb.in(p_aabb.max) && n_aabb.in(p_aabb.min))) {
+                throw std::runtime_error("Object outside node's AABB");
+            }
+        }
+    }
+#endif
 }
 
 Intersection BVH::intersectHelper(const std::vector<primitive_sh_ptr> &primitives, Ray r, size_t node_id) const {
