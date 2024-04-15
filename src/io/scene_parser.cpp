@@ -211,8 +211,6 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
         }
 
         node.matrix = transform;
-        for (int j = 0; j < 16; ++j)
-            node.matrix[j] = transform.data[j];
 
         for (int child : node.children) {
             std::vector<double> &sub_transform = model.nodes[child].matrix;
