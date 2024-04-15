@@ -9,11 +9,14 @@ struct matrix4 {
     T data[16] = {};
 
     matrix4() = default;
-    matrix4(const std::vector<T> &a) { // NOLINT(*-explicit-constructor)
-        std::copy(a.begin(), a.end(), data);
-    }
-
     T* operator[](int i) { return &data[4 * i]; } // get row
+
+    matrix4(const std::vector<T> &a) { // NOLINT(*-explicit-constructor)
+        for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j) {
+            data[i * 4 + j] = a[j * 4 + i];
+        }
+    }
     const T* operator[](int i) const { return &data[4 * i]; } // get row
 
     static matrix4 eye() {
@@ -34,7 +37,10 @@ struct matrix4 {
 
     operator std::vector<T> () const {
         std::vector<T> res(16);
-        std::copy(data, data + 16, res.begin());
+        for (int i = 0; i < 4; ++i)
+            for (int j = 0; j < 4; ++j) {
+                res[j * 4 + i] = data[i * 4 + j];
+            }
         return res;
     }
 //    static matrix4 from_vector_double(const std::vector<double> &a) {

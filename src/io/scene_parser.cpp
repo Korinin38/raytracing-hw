@@ -262,7 +262,6 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
         matrix4d transform = node.matrix;
 
         for (auto &p : mesh.primitives) {
-            // material
             Material material;
 
             if (p.material != -1) {
@@ -349,8 +348,6 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
             }
         }
     }
-
-//    throw std::runtime_error("Not implemented");
 
     return {scene.camera, scene.objects, scene.bg_color, scene.ray_depth, scene.samples, scene.ambient, scene.max_distance};
 }
