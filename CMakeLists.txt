@@ -18,7 +18,6 @@ add_executable(solution
         src/geometry/light_source.cpp
         src/core/camera.cpp
         src/core/camera.h
-        src/render/canvas.cpp
         src/render/canvas.h
         src/utils/base.h
         src/utils/base.cpp
@@ -29,7 +28,8 @@ add_executable(solution
         src/core/bvh.cpp
         src/core/bvh.h
         src/io/scene_parser.cpp
-        src/io/scene_parser.h)
+        src/io/scene_parser.h
+        src/utils/matrix.h)
 
 target_include_directories(solution PUBLIC ${CMAKE_SOURCE_DIR}/src )
 target_include_directories(solution PUBLIC ${CMAKE_SOURCE_DIR}/thirdparty)
@@ -38,4 +38,4 @@ if (USE_CALLBACK)
     target_compile_definitions(solution PRIVATE "USE_CALLBACK")
 endif()
 
-target_link_libraries(solution PRIVATE OpenMP::OpenMP_CXX rapidjson)
+target_link_libraries(solution PRIVATE OpenMP::OpenMP_CXX rapidjson tinygltf)

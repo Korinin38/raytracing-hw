@@ -85,7 +85,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
         if (intersect_plane && intersect_plane.distance < intersection.distance) {
             intersection = intersect_plane;
             intersection.object_id = i;
-            intersection.color = objects[intersection.object_id]->emission;
+            intersection.color = objects[intersection.object_id]->material.emission;
         }
     }
 
@@ -93,7 +93,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
 
     if (intersect_bvh && intersect_bvh.distance < intersection.distance) {
         intersection = intersect_bvh;
-        intersection.color = objects[intersection.object_id]->emission;
+        intersection.color = objects[intersection.object_id]->material.emission;
     }
 
 //    intersection.color = objects[intersection.object_id]->emission;
@@ -122,8 +122,8 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
 
         vector3f pos = r.origin + r.direction * intersection.distance;
 
-        switch(obj.material) {
-            case Primitive::Diffuse: {
+        switch(obj.material.type) {
+            case Material::Type::Diffuse: {
                 vector3f dir{};
                 float pdf = 0.f;
                 float cos;
@@ -138,13 +138,13 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
                 reflect_ray.power = r.power;
                 auto reflect_inter = intersect(reflect_ray, rng, max_distance);
                 float coeff = M_1_PIf32 / pdf;
-                intersection.color += obj.color * coeff * reflect_inter.color * cos;
+                intersection.color += obj.material.color * coeff * reflect_inter.color * cos;
                 break;
             }
-            case Primitive::Dielectric: {
+            case Material::Type::Dielectric: {
                 float cos_in = -dot(intersection.normal, r.direction);
                 float eta_1 = 1.f;
-                float eta_2 = obj.ior;
+                float eta_2 = obj.material.ior;
                 if (intersection.inside)
                     std::swap(eta_1, eta_2);
                 float refractive_index = eta_1 / eta_2;
@@ -186,7 +186,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
                     if (refract_inter) {
                         refract_color = refract_inter.color;
                         if (!intersection.inside)
-                            refract_color *= obj.color;
+                            refract_color *= obj.material.color;
                     } else {
                         refract_color = bg_color;
                     }
@@ -194,13 +194,13 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
                 }
                 break;
             }
-            case Primitive::Metallic: {
+            case Material::Type::Metallic: {
                 vector3f dir = r.direction - 2 * intersection.normal * dot(intersection.normal, r.direction);
                 normalize(dir);
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
                 auto reflect_inter = intersect(reflect_ray, rng, max_distance);
-                intersection.color += obj.color * reflect_inter.color;
+                intersection.color += obj.material.color * reflect_inter.color;
                 break;
             }
         }
@@ -208,14 +208,15 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
     return intersection;
 }
 
-Scene::Scene(camera_uniq_ptr &camera_, std::vector<primitive_sh_ptr> objects_, vector3f bg_color_, int ray_depth_, int samples_, vector3f ambient_) {
-    this->camera = std::move(camera_);
-    this->objects = std::move(objects_);
-    this->bg_color = bg_color_;
-    this->ray_depth = ray_depth_;
-    this->samples = samples_;
-    this->ambient = ambient_;
-
+Scene::Scene(camera_uniq_ptr &camera_, std::vector<primitive_sh_ptr> objects_, vector3f bg_color_, int ray_depth_, int samples_, vector3f ambient_, float max_distance)
+    : camera(std::move(camera_)),
+      objects(std::move(objects_)),
+      bg_color(bg_color_),
+      ray_depth(ray_depth_),
+      samples(samples_),
+      ambient(ambient_),
+      max_distance(max_distance)
+{
     mixed_distribution_sh_ptr light_distr = std::make_shared<MixedDistribution>();
     for (const auto& o : objects) {
         if (o->emissive() && o->type != Primitive::Plane)

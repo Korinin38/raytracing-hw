@@ -70,6 +70,19 @@ typedef struct Intersection {
     operator bool() const;
 } Intersection;
 
+struct Material {
+    enum Type {
+        Diffuse,
+        Dielectric,
+        Metallic
+    };
+
+    Type type = Diffuse;
+    float ior = 1.0;
+    vector3f color = {0, 0, 0};
+    vector3f emission = {0, 0, 0};
+};
+
 struct Primitive {
 public:
     enum GeomType {
@@ -79,21 +92,11 @@ public:
         Triangle
     };
 
-    enum Material {
-        Diffuse,
-        Dielectric,
-        Metallic
-    };
-
     GeomType type = Plane;
-    Material material = Diffuse;
-    float ior = 1.0;
+    Material material;
     vector3f param_[3] = {};
     vector3f position = {};
     vector4f rotation = {0, 0, 0, 1};
-
-    vector3f color = {0, 0, 0};
-    vector3f emission = {0, 0, 0};
 
     Primitive() = default;
     bool parse(const std::string& line);
