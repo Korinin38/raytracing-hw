@@ -252,6 +252,7 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
 
         scene.camera = std::make_unique<Camera>(cam_canvas, cam_position, cam_axes, cam_fov_x, cam_fov_y);
     }
+    scene.samples = samples;
 
     for (auto &node : model.nodes) {
         if (node.mesh == -1)
@@ -270,13 +271,23 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
                     material.color[j] = (float)mesh_material.pbrMetallicRoughness.baseColorFactor[j];
                 if (mesh_material.pbrMetallicRoughness.baseColorFactor[3] < 1.) {
                     material.type = Material::Type::Dielectric;
-                    material.ior = 1.5;
+                    if (mesh_material.extensions.count("KHR_materials_ior")) {
+                        material.ior = (float)mesh_material.extensions["KHR_materials_ior"].Get("ior").GetNumberAsDouble();
+                    } else {
+                        material.ior = 1.5;
+                    }
                 }
                 if (mesh_material.pbrMetallicRoughness.metallicFactor > 0.) {
                     material.type = Material::Type::Metallic;
                 }
                 for (int j = 0; j < 3; ++j)
                     material.emission[j] = (float)mesh_material.emissiveFactor[j];
+
+                if (mesh_material.extensions.count("KHR_materials_emissive_strength")) {
+                    float emission_strength = (float) mesh_material.extensions["KHR_materials_emissive_strength"].Get(
+                            "emissiveStrength").GetNumberAsDouble();
+                    material.emission *= emission_strength;
+                }
             } else {
                 material.type = Material::Type::Diffuse;
                 material.color = {1.f, 1.f, 1.f};
@@ -301,7 +312,7 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
             unsigned char *indices_view = &indices_buffer.data[index_start];
             unsigned char *position_view = &position_buffer.data[position_start];
 
-            for (size_t i = 0; i < indices_accessor.count; ++i) {
+            for (size_t i = 0; i < indices_accessor.count / 3; ++i) {
                 scene.objects.emplace_back(new Primitive());
                 Primitive &primitive = *scene.objects.back();
                 primitive.type = Primitive::Triangle;
