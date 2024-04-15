@@ -2,8 +2,6 @@
 #include <geometry/primitive.h>
 
 #include <cmath>
-// todo: remove
-#include <iostream>
 
 const float step = 1e-4;
 
@@ -68,13 +66,13 @@ vector3f LightDistribution::sample(vector3f point, vector3f normal, Engine &rng)
     vector3f res{};
     switch (primitive->type) {
         case Primitive::Box: {
-            const auto &box_size = std::get<vector3f>(primitive->param_);
+            const auto &box_size = primitive->param_[0];
             vector3f area{4.f * box_size.y * box_size.z, 4.f * box_size.x * box_size.z, 4.f * box_size.x * box_size.y};
             float full_area = area[0] + area[1] + area[2];
 
             const float sample = (UniformDistribution::sample(rng) + 1.f) * full_area / 2;
             // choose face based on sample
-            int face = -1;
+            int face;
             if (sample < area[0]) {
                 face = 0;
             } else if (sample < area[0] + area[1]) {
@@ -95,17 +93,17 @@ vector3f LightDistribution::sample(vector3f point, vector3f normal, Engine &rng)
             break;
         }
         case Primitive::Ellipsoid: {
-            const auto &ellipsoid_radius = std::get<vector3f>(primitive->param_);
+            const auto &ellipsoid_radius = primitive->param_[0];
             // get point on sphere
             res = ::normal(vector3f{UniformDistribution::norm_sample(rng), UniformDistribution::norm_sample(rng), UniformDistribution::norm_sample(rng)});
             res *= ellipsoid_radius;
             break;
         }
         case Primitive::Triangle: {
-            auto params = std::get<std::array<vector3f, 3>>(primitive->param_);
-            vector3f &triangle_origin = params[0];
-            vector3f &U = params[1];
-            vector3f &V = params[2];
+            auto params = primitive->param_;
+            const vector3f &triangle_origin = params[0];
+            const vector3f &U = params[1];
+            const vector3f &V = params[2];
             //todo
             float u = (UniformDistribution::sample(rng) + 1.f) / 2;
             float v = (UniformDistribution::sample(rng) + 1.f) / 2;
@@ -124,9 +122,6 @@ vector3f LightDistribution::sample(vector3f point, vector3f normal, Engine &rng)
     return ::normal(res - point);
 }
 
-static float a = 0.f;
-static int a_times = 0;
-
 float LightDistribution::pdfWithHint(vector3f point, vector3f direction, Intersection hint) {
     float probability[2] = {0, 0};
     Intersection intersection[2];
@@ -142,14 +137,14 @@ float LightDistribution::pdfWithHint(vector3f point, vector3f direction, Interse
 
     switch (primitive->type) {
         case Primitive::Box: {
-            const auto &box_size = std::get<vector3f>(primitive->param_);
+            const auto &box_size = primitive->param_[0];
             float full_area_size = 8 * (box_size[0] * box_size[1] + box_size[1] * box_size[2] + box_size[2] * box_size[0]);
             probability[0] = 1 / full_area_size;
             probability[1] = probability[0];
             break;
         }
         case Primitive::Ellipsoid: {
-            const auto &ellipsoid_radius = std::get<vector3f>(primitive->param_);
+            const auto &ellipsoid_radius = primitive->param_[0];
 
             for (int i = 0; i <= 1; ++i) {
                 if (!intersection[i])

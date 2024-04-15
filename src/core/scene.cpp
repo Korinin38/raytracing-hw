@@ -1,7 +1,6 @@
 #include "scene.h"
 #include <utils/base.h>
 #include <utils/timer.h>
-#include <rapidjson/document.h>
 
 #include <iostream>
 #include <fstream>

@@ -17,15 +17,15 @@ bool Primitive::parse(const std::string& line) {
 
     if (cmd == "BOX") {
 		type = Box;
-        param_ = vec3f_from_string(line, cmd.length() + 1);
+        param_[0] = vec3f_from_string(line, cmd.length() + 1);
         return true;
     } else if (cmd == "ELLIPSOID") {
 		type = Ellipsoid;
-        param_ = vec3f_from_string(line, cmd.length() + 1);
+        param_[0] = vec3f_from_string(line, cmd.length() + 1);
         return true;
     } else if (cmd == "PLANE") {
 		type = Plane;
-        param_ = vec3f_from_string(line, cmd.length() + 1);
+        param_[0] = vec3f_from_string(line, cmd.length() + 1);
         return true;
     } else if (cmd == "TRIANGLE") {
 		type = Triangle;
@@ -33,7 +33,9 @@ bool Primitive::parse(const std::string& line) {
         ss >> p1.x >> p1.y >> p1.z;
         ss >> p2.x >> p2.y >> p2.z;
         ss >> p3.x >> p3.y >> p3.z;
-        param_ = std::array{p1, p2 - p1, p3 - p1};
+        param_[0] = p1;
+        param_[1] = p2 - p1;
+        param_[2] = p3 - p1;
         return true;
     } else if (cmd == "POSITION") {
 		position = vec3f_from_string(line, cmd.length() + 1);
@@ -65,6 +67,8 @@ void Primitive::transformRay(Ray &ray) const {
 
     ray.origin = rotate(ray.origin, *rotation);
     ray.direction = rotate(ray.direction, *rotation);
+
+    ray.inv_direction = vector3f{1.f, 1.f, 1.f} / ray.direction;
 }
 
 Ray::Ray(vector3f p, vector3f d) : origin(p), direction(d) {
@@ -77,7 +81,7 @@ Intersection Primitive::intersect(Ray ray) const {
 
     switch (type) {
         case Box: {
-            const auto &size_ = std::get<vector3f>(param_);
+            const auto &size_ = param_[0];
             vector3f t1{};
             vector3f t2{};
             for (int i = 0; i < 3; ++i) {
@@ -130,7 +134,7 @@ Intersection Primitive::intersect(Ray ray) const {
             return intersection;
         }
         case Plane: {
-            const auto &normal_ = std::get<vector3f>(param_);
+            const auto &normal_ = param_[0];
 
             float t = -dot(ray.origin, normal_) / dot(ray.direction, normal_);
 
@@ -151,7 +155,7 @@ Intersection Primitive::intersect(Ray ray) const {
             return intersection;
         }
         case Ellipsoid: {
-            const auto &radius_ = std::get<vector3f>(param_);
+            const auto &radius_ = param_[0];
 
             float a, b, c;
             vector3f o_r = ray.origin / radius_;
@@ -193,10 +197,9 @@ Intersection Primitive::intersect(Ray ray) const {
             return intersection;
         }
         case Triangle: {
-            auto params = std::get<std::array<vector3f, 3>>(param_);
-            vector3f &triangle_origin = params[0];
-            vector3f &U = params[1];
-            vector3f &V = params[2];
+            const vector3f &triangle_origin = param_[0];
+            const vector3f &U = param_[1];
+            const vector3f &V = param_[2];
 
             vector3f cross_dir_V = (cross(ray.direction, V));
             float det = dot(U, cross_dir_V);
@@ -265,7 +268,7 @@ AABB Primitive::aabb() const {
                 //  for now, use Box case
             }
             case Box: {
-                auto size = std::get<vector3f>(param_);
+                auto size = param_[0];
                 std::vector<vector3f> points;
                 points.reserve(8);
                 for (float sgn1 : {-1.f, 1.f})
@@ -281,9 +284,10 @@ AABB Primitive::aabb() const {
                 break;
             }
             case Triangle: {
-                auto points = std::get<std::array<vector3f, 3>>(param_);
-                points[1] += points[0];
-                points[2] += points[0];
+                vector3f points[3];
+                points[0] = param_[0];
+                points[1] = param_[0] + param_[1];
+                points[2] = param_[0] + param_[2];
                 for (auto &p : points) {
                     cache.aabb.grow(rotate(p, rotation) + position);
                 }

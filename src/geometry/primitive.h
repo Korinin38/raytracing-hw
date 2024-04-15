@@ -88,7 +88,7 @@ public:
     GeomType type = Plane;
     Material material = Diffuse;
     float ior = 1.0;
-    std::variant<vector3f, std::array<vector3f, 3>> param_ = {};
+    vector3f param_[3] = {};
     vector3f position = {};
     vector4f rotation = {0, 0, 0, 1};
 
