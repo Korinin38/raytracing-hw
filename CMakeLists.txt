@@ -14,8 +14,6 @@ add_executable(solution
         src/core/scene.cpp
         src/geometry/primitive.h
         src/geometry/primitive.cpp
-        src/geometry/light_source.h
-        src/geometry/light_source.cpp
         src/core/camera.cpp
         src/core/camera.h
         src/render/canvas.h

@@ -64,6 +64,7 @@ typedef struct Intersection {
     bool successful = false;
     float distance;
     vector3f normal;
+    vector2f local_coords;
     vector3f color;
     bool inside = false;
     size_t object_id = -1;
@@ -85,23 +86,19 @@ struct Material {
 
 struct Primitive {
 public:
-    enum GeomType {
-        Box,
-        Ellipsoid,
-        Plane,
-        Triangle
-    };
-
-    GeomType type = Plane;
     Material material;
-    vector3f param_[3] = {};
-    vector3f position = {};
-    vector4f rotation = {0, 0, 0, 1};
+    // 0: origin point
+    // 1: U
+    // 2: V
+    vector3f position[3] = {};
+    vector3f normal[3] = {};
 
     Primitive() = default;
-    bool parse(const std::string& line);
     bool emissive() const;
     [[nodiscard]] Intersection intersect(Ray ray) const;
+
+    vector3f get_geometric_normal() const;
+    vector3f get_shading_normal(vector2f local_coords) const;
 
     vector3f to_global(vector3f local) const;
     vector3f to_local(vector3f global) const;
@@ -111,13 +108,9 @@ public:
     struct CalculationCache {
         vector3f triangle_normal{};
         float triangle_area = 0.f;
-        vector3f box_inv_size{};
         AABB aabb;
     };
     mutable CalculationCache cache;
-protected:
-    // shift and rotate Ray to make itself behave like axis-aligned, in origin
-    void transformRay(Ray &ray) const;
 };
 
 struct Ray {

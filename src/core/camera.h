@@ -29,9 +29,6 @@ public:
 
     vector2f get_fov() const;
 
-    // todo
-//    vector2i project(vector3f point);
-
     // NB: casts into a center of a pixel
     Ray cast_in_pixel(vector2i p, vector2f rand_offset = {});
 

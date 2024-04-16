@@ -21,6 +21,8 @@ public:
     const uint8_t max_color_value_ = 255;
 
     void write_to(const std::string &filename) const;
+
+    void smooth();
 private:
     vector2i size_;
     std::vector<vector3si> data_;
@@ -42,6 +44,33 @@ inline vector3si Canvas::get(vector2i pos) const {
     }
     ptrdiff_t offset = size_.x * pos.y + pos.x;
     return data_[offset];
+}
+
+inline void Canvas::smooth() {
+    std::vector<vector3si> res(size_.x * size_.y);
+    for (int i = 0; i < width(); ++i)
+    for (int j = 0; j < height(); ++j) {
+        int weight = 0;
+        vector3f value{};
+
+        for (int di = -1; di <= 1; ++di)
+        for (int dj = -1; dj <= 1; ++dj) {
+            if (i + di < 0 || i + di >= width()
+             || j + dj < 0 || j + dj >= height())
+                continue;
+            int w = 1 * (1 + std::abs(di)) * (1 + std::abs(dj));
+            weight += w;
+
+            ptrdiff_t offset = size_.x * (j + dj) + i + di;
+
+            value += (ch8bit_to_normal(data_[offset])) * (float)w;
+        }
+
+        ptrdiff_t offset = size_.x * j + i;
+        res[offset] = normal_to_ch8bit(value * (1 / (float)weight));
+    }
+
+    std::swap(data_, res);
 }
 
 inline void Canvas::write_to(const std::string &filename) const {

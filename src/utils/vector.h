@@ -38,7 +38,7 @@ struct vector3f {
     float &operator[](int i) { return *(&x + i); }
     const float &operator[](int i) const { return *(&x + i); }
 
-    vector3f add(float t);
+    vector3f add(float t) const;
     vector3f &operator+=(vector3f b);
     vector3f &operator*=(vector3f b);
     vector3f &operator*=(float b);
@@ -272,7 +272,7 @@ inline vector3f &vector3f::operator*=(float b) {
     return *this;
 }
 
-inline vector3f vector3f::add(float t) {
+inline vector3f vector3f::add(float t) const {
     return {x + t, y + t, z + t};
 }
 

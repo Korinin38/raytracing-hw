@@ -64,126 +64,30 @@ LightDistribution::LightDistribution(const Primitive &object) {
 
 vector3f LightDistribution::sample(vector3f point, vector3f normal, Engine &rng) {
     vector3f res{};
-    switch (primitive->type) {
-        case Primitive::Box: {
-            const auto &box_size = primitive->param_[0];
-            vector3f area{4.f * box_size.y * box_size.z, 4.f * box_size.x * box_size.z, 4.f * box_size.x * box_size.y};
-            float full_area = area[0] + area[1] + area[2];
 
-            const float sample = (UniformDistribution::sample(rng) + 1.f) * full_area / 2;
-            // choose face based on sample
-            int face;
-            if (sample < area[0]) {
-                face = 0;
-            } else if (sample < area[0] + area[1]) {
-                face = 1;
-            } else if (sample < full_area) {
-                face = 2;
-            } else {
-                throw std::runtime_error("Unexpected face value.");
-            }
-
-            const float side = (UniformDistribution::sample(rng) < 0.f) ? -1.f : 1.f;
-
-            const int face1 = (face + 1) % 3;
-            const int face2 = (face + 2) % 3;
-            res[face] = side * box_size[face];
-            res[face1] = box_size[face1] * UniformDistribution::sample(rng);
-            res[face2] = box_size[face2] * UniformDistribution::sample(rng);
-            break;
-        }
-        case Primitive::Ellipsoid: {
-            const auto &ellipsoid_radius = primitive->param_[0];
-            // get point on sphere
-            res = ::normal(vector3f{UniformDistribution::norm_sample(rng), UniformDistribution::norm_sample(rng), UniformDistribution::norm_sample(rng)});
-            res *= ellipsoid_radius;
-            break;
-        }
-        case Primitive::Triangle: {
-            auto params = primitive->param_;
-            const vector3f &triangle_origin = params[0];
-            const vector3f &U = params[1];
-            const vector3f &V = params[2];
-            //todo
-            float u = (UniformDistribution::sample(rng) + 1.f) / 2;
-            float v = (UniformDistribution::sample(rng) + 1.f) / 2;
-            if (u + v > 1) {
-                u = 1 - u;
-                v = 1 - v;
-            }
-            res = triangle_origin + u * U + v * V;
-            break;
-        }
-        case Primitive::Plane:
-        default:
-            throw std::runtime_error("rassert failed: light sample from Plane primitive");
+    auto params = primitive->position;
+    float u = (UniformDistribution::sample(rng) + 1.f) / 2;
+    float v = (UniformDistribution::sample(rng) + 1.f) / 2;
+    if (u + v > 1) {
+        u = 1 - u;
+        v = 1 - v;
     }
-    res = primitive->to_global(res);
+    const vector3f &triangle_origin = params[0];
+    const vector3f &U = params[1];
+    const vector3f &V = params[2];
+
+    res = triangle_origin + u * U + v * V;
     return ::normal(res - point);
 }
 
 float LightDistribution::pdfWithHint(vector3f point, vector3f direction, Intersection hint) {
-    float probability[2] = {0, 0};
-    Intersection intersection[2];
-    intersection[0] = hint;
+    float probability = 0.f;
+    Intersection intersection = hint;
 
-    if (primitive->type != Primitive::Triangle) {
-        intersection[1] = primitive->intersect(
-                {point + direction * intersection[0].distance + direction * step, direction});
-        if (intersection[1]) {
-            intersection[1].distance += intersection[0].distance;
-        }
-    }
+    // it is guaranteed that cache was pre-calculated
+    probability = 1.f / primitive->cache.triangle_area;
 
-    switch (primitive->type) {
-        case Primitive::Box: {
-            const auto &box_size = primitive->param_[0];
-            float full_area_size = 8 * (box_size[0] * box_size[1] + box_size[1] * box_size[2] + box_size[2] * box_size[0]);
-            probability[0] = 1 / full_area_size;
-            probability[1] = probability[0];
-            break;
-        }
-        case Primitive::Ellipsoid: {
-            const auto &ellipsoid_radius = primitive->param_[0];
-
-            for (int i = 0; i <= 1; ++i) {
-                if (!intersection[i])
-                    break;
-
-                // get normal of point of sphere corresponding to the point of ellipsoid
-                vector3f ell_point = primitive->to_local(point + direction * intersection[i].distance);
-                vector3f sphere_normal = ell_point / ellipsoid_radius;
-
-                float area_squared = 0.f;
-                for (int f = 0; f < 3; ++f) {
-                    const int f0 = (f) % 3;
-                    const int f1 = (f + 1) % 3;
-                    const int f2 = (f + 2) % 3;
-                    area_squared += sphere_normal[f0] * sphere_normal[f0]
-                                    * ellipsoid_radius[f1] * ellipsoid_radius[f1]
-                                    * ellipsoid_radius[f2] * ellipsoid_radius[f2];
-                }
-
-                probability[i] = 0.25f * M_1_PIf32 / std::sqrt(area_squared);
-            }
-            break;
-        }
-        case Primitive::Triangle: {
-            probability[0] = 1.f / primitive->cache.triangle_area;
-            break;
-        }
-        case Primitive::Plane:
-        default:
-            return 0;
-    }
-
-    float res = 0.f;
-    for (int i = 0; i <= 1; ++i) {
-        if (!intersection[i])
-            break;
-        res += std::abs(probability[i] * (intersection[i].distance * intersection[i].distance) / dot(intersection[i].normal, direction));
-    }
-    return res;
+    return std::abs(probability * (intersection.distance * intersection.distance) / dot(intersection.normal, direction));
 }
 
 float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction) {
@@ -225,7 +129,7 @@ size_t MixedDistribution::size() const {
 
 ManyLightsDistribution::ManyLightsDistribution(const std::vector<primitive_sh_ptr>& primitives) {
     for (const auto& p : primitives) {
-        if (!p->emissive() || p->type == Primitive::Plane)
+        if (!p->emissive())
             continue;
         objects.push_back(p);
     }

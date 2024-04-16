@@ -58,13 +58,14 @@ void Scene::render(ProgressFunc callback) const {
             camera->canvas.set({i, j}, normal_to_ch8bit(color));
         }
     }
+//    camera->canvas.smooth();
 }
 
 void Scene::draw_into(const std::string &filename) const {
     camera->canvas.write_to(filename);
 }
 
-Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_color) const {
+Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
     if (r.power <= 0) {
         return {};
     }
@@ -77,17 +78,6 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
     intersection.object_id = -1;
 
 //    size_t intersected_idx = -1;
-
-    for (int i = objects.size() - 1; i >= 0; --i) {
-        if (objects[i]->type != Primitive::Plane)
-            break;
-        auto intersect_plane = objects[i]->intersect(r);
-        if (intersect_plane && intersect_plane.distance < intersection.distance) {
-            intersection = intersect_plane;
-            intersection.object_id = i;
-            intersection.color = objects[intersection.object_id]->material.emission;
-        }
-    }
 
     auto intersect_bvh = bvh.intersect(objects, r);
 
@@ -136,7 +126,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
                     break;
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
-                auto reflect_inter = intersect(reflect_ray, rng, max_distance);
+                auto reflect_inter = intersect(reflect_ray, rng);
                 float coeff = M_1_PIf32 / pdf;
                 intersection.color += obj.material.color * coeff * reflect_inter.color * cos;
                 break;
@@ -169,7 +159,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
                     normalize(dir);
                     Ray reflect_ray(pos + dir * step, dir);
                     reflect_ray.power = r.power;
-                    auto reflect_inter = intersect(reflect_ray, rng, max_distance);
+                    auto reflect_inter = intersect(reflect_ray, rng);
                     intersection.color += reflect_inter.color;
                 } else {
                     // refracted
@@ -180,7 +170,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
                     normalize(dir);
                     Ray reflect_ray(pos + dir * step, dir);
                     reflect_ray.power = r.power;
-                    auto refract_inter = intersect(reflect_ray, rng, max_distance);
+                    auto refract_inter = intersect(reflect_ray, rng);
 
                     vector3f refract_color{};
                     if (refract_inter) {
@@ -199,7 +189,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
                 normalize(dir);
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;
-                auto reflect_inter = intersect(reflect_ray, rng, max_distance);
+                auto reflect_inter = intersect(reflect_ray, rng);
                 intersection.color += obj.material.color * reflect_inter.color;
                 break;
             }
@@ -208,18 +198,17 @@ Intersection Scene::intersect(Ray r, Engine &rng, float max_distance, bool no_co
     return intersection;
 }
 
-Scene::Scene(camera_uniq_ptr &camera_, std::vector<primitive_sh_ptr> objects_, vector3f bg_color_, int ray_depth_, int samples_, vector3f ambient_, float max_distance)
+Scene::Scene(camera_uniq_ptr &camera_, std::vector<primitive_sh_ptr> objects_, vector3f bg_color_, int ray_depth_, int samples_, float max_distance)
     : camera(std::move(camera_)),
       objects(std::move(objects_)),
       bg_color(bg_color_),
       ray_depth(ray_depth_),
       samples(samples_),
-      ambient(ambient_),
       max_distance(max_distance)
 {
     mixed_distribution_sh_ptr light_distr = std::make_shared<MixedDistribution>();
     for (const auto& o : objects) {
-        if (o->emissive() && o->type != Primitive::Plane)
+        if (o->emissive())
             light_distr->add_distr(std::make_shared<LightDistribution>(*o));
     }
 

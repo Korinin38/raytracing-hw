@@ -2,126 +2,125 @@
 
 #include <algorithm>
 
-namespace {
-    size_t buildHelperNaive(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb, size_t first, size_t count, size_t &dim) {
-        auto begin = primitives.begin() + (ptrdiff_t)first;
-        auto end = primitives.begin() + (ptrdiff_t)first + (ptrdiff_t)count;
+size_t buildHelperNaive(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb, size_t first, size_t count, size_t &dim) {
+    auto begin = primitives.begin() + (ptrdiff_t)first;
+    auto end = primitives.begin() + (ptrdiff_t)first + (ptrdiff_t)count;
 
-        vector3f aabb_size = node_aabb.size();
-        int aabb_widest_axis = 0;
-        {
-            float max_size = aabb_size.x;
-            for (int i = 0; i < 3; ++i) {
-                if (max_size < aabb_size[i]) {
-                    max_size = aabb_size[i];
-                    aabb_widest_axis = i;
-                }
+    vector3f aabb_size = node_aabb.size();
+    int aabb_widest_axis = 0;
+    {
+        float max_size = aabb_size.x;
+        for (int i = 0; i < 3; ++i) {
+            if (max_size < aabb_size[i]) {
+                max_size = aabb_size[i];
+                aabb_widest_axis = i;
             }
         }
-
-        dim = aabb_widest_axis;
-        // partition
-        float middle = node_aabb.min[aabb_widest_axis] + aabb_size[aabb_widest_axis] / 2;
-        std::function<bool(primitive_sh_ptr)> pred = [aabb_widest_axis, middle](const primitive_sh_ptr &a) {
-            return ((a.get())->aabb().max[aabb_widest_axis] < middle);
-        };
-
-        auto part = std::partition(begin, end, pred);
-        return (part - begin);
     }
 
-    size_t buildHelperSAH(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb, size_t first, size_t count, size_t &best_dim) {
-        const int BIN_SIZE = 1;
+    dim = aabb_widest_axis;
+    // partition
+    float middle = node_aabb.min[aabb_widest_axis] + aabb_size[aabb_widest_axis] / 2;
+    std::function<bool(primitive_sh_ptr)> pred = [aabb_widest_axis, middle](const primitive_sh_ptr &a) {
+        return ((a.get())->aabb().max[aabb_widest_axis] < middle);
+    };
+
+    auto part = std::partition(begin, end, pred);
+    return (part - begin);
+}
+
+size_t buildHelperSAH(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb, size_t first, size_t count, size_t &best_dim) {
+    const int BIN_SIZE = 1;
 
 #define ONLY_WIDEST_AXIS 1
 #if ONLY_WIDEST_AXIS
-        auto begin = primitives.begin() + (ptrdiff_t)first;
-        auto end = primitives.begin() + (ptrdiff_t)first + (ptrdiff_t)count;
+    auto begin = primitives.begin() + (ptrdiff_t)first;
+    auto end = primitives.begin() + (ptrdiff_t)first + (ptrdiff_t)count;
 #endif
 
-        // todo: change BIN_SIZE?
-        const int bins_count = ((count - 1) / BIN_SIZE) + 1;
+    // todo: change BIN_SIZE?
+    const int bins_count = ((count - 1) / BIN_SIZE) + 1;
 //        const int bins_count = count;
-        std::vector<AABB> sah_bins(bins_count);
-        std::vector<float> sah_left_scan(bins_count);
-        std::vector<float> sah_right_scan(bins_count);
+    std::vector<AABB> sah_bins(bins_count);
+    std::vector<float> sah_left_scan(bins_count);
+    std::vector<float> sah_right_scan(bins_count);
 
-        float best_sah = node_aabb.surface_area() * (float)count;
-        float best_split = (primitives.begin() + first)->get()->aabb().center()[2] - 1e-7;
-        auto result = primitives.begin() + first;
-        best_dim = 2;
+    float best_sah = node_aabb.surface_area() * (float)count;
+    float best_split = (primitives.begin() + first)->get()->aabb().center()[2] - 1e-7;
+    auto result = primitives.begin() + first;
+    best_dim = 2;
 
 #if ONLY_WIDEST_AXIS
-        int aabb_widest_axis = 0;
-        {
-            float max_size = node_aabb.size().x;
-            for (int i = 0; i < 3; ++i) {
-                if (max_size < node_aabb.size()[i]) {
-                    max_size = node_aabb.size()[i];
-                    aabb_widest_axis = i;
-                }
+    int aabb_widest_axis = 0;
+    {
+        float max_size = node_aabb.size().x;
+        for (int i = 0; i < 3; ++i) {
+            if (max_size < node_aabb.size()[i]) {
+                max_size = node_aabb.size()[i];
+                aabb_widest_axis = i;
             }
         }
-        int dim = aabb_widest_axis;
-        {
+    }
+    int dim = aabb_widest_axis;
+    {
 #else
-        auto vb = primitives.begin() + first;
-        auto ve = primitives.begin() + first + count;
-        std::vector<primitive_sh_ptr> nodes_sorted[3] = {std::vector<primitive_sh_ptr>(vb, ve),
-                                                         std::vector<primitive_sh_ptr>(vb, ve),
-                                                         std::vector<primitive_sh_ptr>(vb, ve)};
-        for (int dim = 0; dim < 3; ++dim) {
-            auto begin = nodes_sorted[dim].begin();
-            auto end = nodes_sorted[dim].end();
+    auto vb = primitives.begin() + first;
+    auto ve = primitives.begin() + first + count;
+    std::vector<primitive_sh_ptr> nodes_sorted[3] = {std::vector<primitive_sh_ptr>(vb, ve),
+                                                     std::vector<primitive_sh_ptr>(vb, ve),
+                                                     std::vector<primitive_sh_ptr>(vb, ve)};
+    for (int dim = 0; dim < 3; ++dim) {
+        auto begin = nodes_sorted[dim].begin();
+        auto end = nodes_sorted[dim].end();
 #endif
-            auto predicate = [dim](primitive_sh_ptr &a, primitive_sh_ptr &b) {
-                return (a->aabb().center()[dim] < b->aabb().center()[dim]);
-            };
-            std::sort(begin, end, predicate);
+        auto predicate = [dim](primitive_sh_ptr &a, primitive_sh_ptr &b) {
+            return (a->aabb().center()[dim] < b->aabb().center()[dim]);
+        };
+        std::sort(begin, end, predicate);
 
 //            #pragma omp parallel for shared(primitives, sah_bins)
-            for (int bin = 0; bin < bins_count; ++bin) {
-                for (int i = 0; i < BIN_SIZE; ++i) {
-                    if (bin * BIN_SIZE + i >= count)
-                        break;
-                    sah_bins[bin].grow(primitives[first + bin * BIN_SIZE + i]->aabb());
-                }
-            }
-
-            AABB tmp = sah_bins[0];
-            sah_left_scan[0] = tmp.surface_area();
-            for (int i = 1; i < bins_count; ++i) {
-                tmp.grow(sah_bins[i]);
-                sah_left_scan[i] = tmp.surface_area();
-            }
-
-            tmp = sah_bins[bins_count - 1];
-            sah_right_scan[bins_count - 1] = tmp.surface_area();
-            for (int i = bins_count - 2; i >= 0; --i) {
-                tmp.grow(sah_bins[i]);
-                sah_right_scan[i] = tmp.surface_area();
-            }
-
-            for (int i = 0; i < bins_count - 1; ++i) {
-                float ls = sah_left_scan[i];
-                float rs = sah_right_scan[i + 1];
-
-                int left_obj_count = (i + 1) * BIN_SIZE;
-
-                float metric = ls * (float)(left_obj_count) + rs * (float)(count - left_obj_count);
-                if (metric < best_sah) {
-                    best_sah = metric;
-                    result = primitives.begin() + first + left_obj_count;
-                    best_dim = dim;
-                    if (left_obj_count < count)
-                        best_split = ((result - 1)->get()->aabb().center()[dim] + result->get()->aabb().center()[dim]) * 0.5f;
-                }
+        for (int bin = 0; bin < bins_count; ++bin) {
+            for (int i = 0; i < BIN_SIZE; ++i) {
+                if (bin * BIN_SIZE + i >= count)
+                    break;
+                sah_bins[bin].grow(primitives[first + bin * BIN_SIZE + i]->aabb());
             }
         }
+
+        AABB tmp = sah_bins[0];
+        sah_left_scan[0] = tmp.surface_area();
+        for (int i = 1; i < bins_count; ++i) {
+            tmp.grow(sah_bins[i]);
+            sah_left_scan[i] = tmp.surface_area();
+        }
+
+        tmp = sah_bins[bins_count - 1];
+        sah_right_scan[bins_count - 1] = tmp.surface_area();
+        for (int i = bins_count - 2; i >= 0; --i) {
+            tmp.grow(sah_bins[i]);
+            sah_right_scan[i] = tmp.surface_area();
+        }
+
+        for (int i = 0; i < bins_count - 1; ++i) {
+            float ls = sah_left_scan[i];
+            float rs = sah_right_scan[i + 1];
+
+            int left_obj_count = (i + 1) * BIN_SIZE;
+
+            float metric = ls * (float)(left_obj_count) + rs * (float)(count - left_obj_count);
+            if (metric < best_sah) {
+                best_sah = metric;
+                result = primitives.begin() + first + left_obj_count;
+                best_dim = dim;
+                if (left_obj_count < count)
+                    best_split = ((result - 1)->get()->aabb().center()[dim] + result->get()->aabb().center()[dim]) * 0.5f;
+            }
+        }
+    }
 
 #if !ONLY_WIDEST_AXIS
 //        if (best_dim != 2)
-        {
+    {
 //            AABB klvcbj = nodes_sorted[best_dim][(result - (primitives.begin() + first))]->aabb();
 //            float part = klvcbj.max[best_dim] + klvcbj.min[best_dim];
 //            auto predicate = [best_dim, part](primitive_sh_ptr &a) {
@@ -131,15 +130,14 @@ namespace {
 //                return ((a->aabb().max[best_dim] + a->aabb().min[best_dim]) < (b->aabb().max[best_dim] + b->aabb().min[best_dim]));
 //            };
 //            result = std::partition(primitives.begin() + first, primitives.begin() + first + count, predicate);
-            std::copy(nodes_sorted[best_dim].begin(), nodes_sorted[best_dim].end(), primitives.begin() + first);
+        std::copy(nodes_sorted[best_dim].begin(), nodes_sorted[best_dim].end(), primitives.begin() + first);
 //            std::sort(begin, end, predicate);
-        }
+    }
 #endif
 #undef ONLY_WIDEST_AXIS
-        auto pred = [best_dim, best_split](primitive_sh_ptr &a){ return a->aabb().center()[best_dim] < best_split; };
-        result = std::partition(begin, end, pred);
-        return (result - (primitives.begin() + first));
-    }
+    auto pred = [best_dim, best_split](primitive_sh_ptr &a){ return a->aabb().center()[best_dim] < best_split; };
+    result = std::partition(begin, end, pred);
+    return (result - (primitives.begin() + first));
 }
 
 size_t BVH::buildNode(std::vector<StackBuildNode> &nodes_q, std::vector<primitive_sh_ptr> &primitives) { // NOLINT(*-no-recursion)
@@ -199,26 +197,16 @@ size_t BVH::buildNode(std::vector<StackBuildNode> &nodes_q, std::vector<primitiv
 }
 
 void BVH::buildBVH(std::vector<primitive_sh_ptr> &primitives) {
-    size_t npo = 0;
-    for (auto &p : primitives) {
-        if (p->type != Primitive::Plane)
-            ++npo;
-    }
-    auto plane_it = std::partition(primitives.begin(), primitives.end(), [](primitive_sh_ptr &p) {return (p->type != Primitive::Plane);} );
-    size_t non_plane_objects = plane_it - primitives.begin();
-
     std::vector<StackBuildNode> nodes_q;
-    nodes_q.emplace_back(nodes.size(), 0, non_plane_objects);
+    nodes_q.emplace_back(nodes.size(), 0, primitives.size());
     nodes.emplace_back();
     int a = 0;
     while (!nodes_q.empty()) {
         buildNode(nodes_q, primitives);
         a++;
     }
-
 #ifndef NDEBUG
-    for (int j = 0; j < nodes.size(); ++j) {
-        auto &node = nodes[j];
+    for (auto & node : nodes) {
         if (node.primitive_count == 0)
             continue;
         const AABB &n_aabb = node.aabb;
