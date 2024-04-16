@@ -9,15 +9,12 @@ struct matrix4 {
     T data[16] = {};
 
     matrix4() = default;
-    T* operator[](int i) { return &data[4 * i]; } // get row
-
     matrix4(const std::vector<T> &a) { // NOLINT(*-explicit-constructor)
-        for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j) {
-            data[i * 4 + j] = a[j * 4 + i];
-        }
+        std::copy(a.begin(), a.end(), data);
     }
-    const T* operator[](int i) const { return &data[4 * i]; } // get row
+
+    T* operator[](int i) { return &data[4 * i]; } // get column
+    const T* operator[](int i) const { return &data[4 * i]; } // get column
 
     static matrix4 eye() {
         return {{1.f, 0.f, 0.f, 0.f,
@@ -28,29 +25,18 @@ struct matrix4 {
 
     static matrix4 TRS(vector3f t, vector4f r, vector3f s) {
         return {{
-                        (1.0f-2.0f*(r.y*r.y+r.z*r.z))*s.x,  (r.x*r.y-r.z*r.w)*s.y*2.0f,         (r.x*r.z+r.y*r.w)*s.z*2.0f,         t.x,
-                        (r.x*r.y+r.z*r.w)*s.x*2.0f,         (1.0f-2.0f*(r.x*r.x+r.z*r.z))*s.y,  (r.y*r.z-r.x*r.w)*s.z*2.0f,         t.y,
-                        (r.x*r.z-r.y*r.w)*s.x*2.0f,         (r.y*r.z+r.x*r.w)*s.y*2.0f,         (1.0f-2.0f*(r.x*r.x+r.y*r.y))*s.z,  t.z,
-                        0.f,                                0.f,                                0.f,                                1.f
+                (1.0f-2.0f*(r.y*r.y+r.z*r.z))*s.x,  (r.x*r.y+r.z*r.w)*s.x*2.0f,         (r.x*r.z-r.y*r.w)*s.x*2.0f,         0.f,
+                (r.x*r.y-r.z*r.w)*s.y*2.0f,         (1.0f-2.0f*(r.x*r.x+r.z*r.z))*s.y,  (r.y*r.z+r.x*r.w)*s.y*2.0f,         0.f,
+                (r.x*r.z+r.y*r.w)*s.z*2.0f,         (r.y*r.z-r.x*r.w)*s.z*2.0f,         (1.0f-2.0f*(r.x*r.x+r.y*r.y))*s.z,  0.f,
+                t.x,                                t.y,                                t.z,                                1.f
                 }};
     }
 
     operator std::vector<T> () const {
-        std::vector<T> res(16);
-        for (int i = 0; i < 4; ++i)
-            for (int j = 0; j < 4; ++j) {
-                res[j * 4 + i] = data[i * 4 + j];
-            }
+        std::vector<T> res;
+        res.insert(res.end(), &data[0], &data[16]);
         return res;
     }
-//    static matrix4 from_vector_double(const std::vector<double> &a) {
-//        matrix4 res;
-//        if (a.size() != 16)
-//            throw std::bad_cast();
-//        for (int j = 0; j < a.size(); ++j)
-//            res.data[j] = (float) a[j];
-//        return res;
-//    }
 };
 
 template <typename T>
@@ -78,11 +64,9 @@ matrix4<T> multiply(const matrix4<T> &a, const matrix4<T> &b) {
 template <typename T>
 vector4f multiply(const matrix4<T> &mat, const vector4f &t) {
     vector4f res{};
-    for (int i = 0; i < 4; ++i) {
-        const T* row = mat[i];
-        for (int j = 0; j < 4; ++j) {
-            res[i] += row[j] * t[j];
-        }
+    for (int i = 0; i < 4; ++i)
+    for (int j = 0; j < 4; ++j) {
+        res[i] += mat[j][i] * t[j];
     }
     return res;
 }

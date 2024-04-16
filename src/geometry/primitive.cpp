@@ -63,12 +63,12 @@ bool Primitive::parse(const std::string& line) {
 }
 
 void Primitive::transformRay(Ray &ray) const {
-//    ray.origin = ray.origin - position;
-//
-//    ray.origin = rotate(ray.origin, *rotation);
-//    ray.direction = rotate(ray.direction, *rotation);
-//
-//    ray.inv_direction = vector3f{1.f, 1.f, 1.f} / ray.direction;
+    ray.origin = ray.origin - position;
+
+    ray.origin = rotate(ray.origin, *rotation);
+    ray.direction = rotate(ray.direction, *rotation);
+
+    ray.inv_direction = vector3f{1.f, 1.f, 1.f} / ray.direction;
 }
 
 Ray::Ray(vector3f p, vector3f d) : origin(p), direction(d) {
@@ -261,42 +261,41 @@ vector3f Primitive::to_local(vector3f global) const {
 }
 
 AABB Primitive::aabb() const {
-    if (cache.aabb.empty()) {
-        switch (type) {
-            case Ellipsoid: {
-                // todo: make more tight AABB
-                //  for now, use Box case
-            }
-            case Box: {
-                auto size = param_[0];
-                std::vector<vector3f> points;
-                points.reserve(8);
-                for (float sgn1 : {-1.f, 1.f})
-                for (float sgn2 : {-1.f, 1.f})
-                for (float sgn3 : {-1.f, 1.f}) {
-                    points.push_back({size.x * sgn1, size.y * sgn2, size.z * sgn3});
-                }
-
-                for (auto &p : points) {
-                    p = rotate(p,rotation);
-                    cache.aabb.grow(p + position);
-                }
-                break;
-            }
-            case Triangle: {
-                vector3f points[3];
-                points[0] = param_[0];
-                points[1] = param_[0] + param_[1];
-                points[2] = param_[0] + param_[2];
-                for (auto &p : points) {
-                    cache.aabb.grow(rotate(p, rotation) + position);
-                }
-                break;
-            }
-            case Plane:
-            default:
-                throw std::runtime_error("Incorrect type to calculate AABB");
+    if (!cache.aabb.empty()) return cache.aabb;
+    switch (type) {
+        case Ellipsoid: {
+            // todo: make more tight AABB
+            //  for now, use Box case
         }
+        case Box: {
+            auto size = param_[0];
+            std::vector<vector3f> points;
+            points.reserve(8);
+            for (float sgn1 : {-1.f, 1.f})
+            for (float sgn2 : {-1.f, 1.f})
+            for (float sgn3 : {-1.f, 1.f}) {
+                points.push_back({size.x * sgn1, size.y * sgn2, size.z * sgn3});
+            }
+
+            for (auto &p : points) {
+                p = rotate(p,rotation);
+                cache.aabb.grow(p + position);
+            }
+            break;
+        }
+        case Triangle: {
+            vector3f points[3];
+            points[0] = param_[0];
+            points[1] = param_[0] + param_[1];
+            points[2] = param_[0] + param_[2];
+            for (auto &p : points) {
+                cache.aabb.grow(rotate(p, rotation) + position);
+            }
+            break;
+        }
+        case Plane:
+        default:
+            throw std::runtime_error("Incorrect type to calculate AABB");
     }
     return cache.aabb;
 }
