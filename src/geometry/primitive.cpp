@@ -228,7 +228,7 @@ Intersection Primitive::intersect(Ray ray) const {
 
             if (cache.triangle_normal.is_zero()) {
                 cache.triangle_normal = cross(U, V);
-                cache.triangle_area = length(cache.triangle_normal);
+                cache.triangle_area = 0.5f * length(cache.triangle_normal);
                 normalize(cache.triangle_normal);
             }
 
