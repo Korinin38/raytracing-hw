@@ -13,8 +13,8 @@ struct matrix4 {
         std::copy(a.begin(), a.end(), data);
     }
 
-    T* operator[](int i) { return &data[4 * i]; } // get column
-    const T* operator[](int i) const { return &data[4 * i]; } // get column
+    T* operator[](int i) { return &data[4 * i]; }               // get column
+    const T* operator[](int i) const { return &data[4 * i]; }   // get column
 
     static matrix4 eye() {
         return {{1.f, 0.f, 0.f, 0.f,
