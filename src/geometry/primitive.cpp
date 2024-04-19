@@ -43,16 +43,10 @@ Intersection Primitive::intersect(Ray ray) const {
 
     Intersection intersection;
 
-    if (cache.triangle_normal.is_zero()) {
-        cache.triangle_normal = cross(U, V);
-        cache.triangle_area = 0.5f * length(cache.triangle_normal);
-        normalize(cache.triangle_normal);
-    }
-
     intersection.successful = true;
     intersection.color = material.color;
-//    intersection.normal = rotate(cache.triangle_normal, rotation);
-    intersection.normal = cache.triangle_normal;
+    intersection.local_coords = {u, v};
+    intersection.normal = get_geometric_normal();
     intersection.distance = t;
     if (dot(ray.direction, intersection.normal) > 0) {
         intersection.inside = true;
@@ -65,14 +59,6 @@ Intersection Primitive::intersect(Ray ray) const {
 bool Primitive::emissive() const {
     return (!material.emission.is_zero());
 }
-
-//vector3f Primitive::to_global(vector3f local) const {
-//    return rotate(local, rotation) + position;
-//}
-//
-//vector3f Primitive::to_local(vector3f global) const {
-//    return rotate(global - position, *rotation);
-//}
 
 AABB Primitive::aabb() const {
     if (!cache.aabb.empty()) return cache.aabb;
@@ -89,11 +75,18 @@ AABB Primitive::aabb() const {
 }
 
 vector3f Primitive::get_geometric_normal() const {
+    if (cache.triangle_normal.is_zero()) {
+        cache.triangle_normal = cross(position[1], position[2]);
+        cache.triangle_area = 0.5f * length(cache.triangle_normal);
+        normalize(cache.triangle_normal);
+    }
     return cache.triangle_normal;
 }
 
 vector3f Primitive::get_shading_normal(vector2f local_coords) const {
-    return normal[0] + local_coords.x * normal[1] + local_coords.y * normal[2];
+    if (local_coords.x < 0 || local_coords.x > 1 || local_coords.y < 0 || local_coords.x + local_coords.y > 1)
+        throw std::runtime_error("Invalid local coordinates");
+    return ::normal(normal[0] + local_coords.x * normal[1] + local_coords.y * normal[2]);
 }
 
 std::optional<float> AABB::intersect(Ray r) const {

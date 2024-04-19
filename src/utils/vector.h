@@ -377,3 +377,7 @@ inline vector3f min(vector3f a, vector3f b) {
 inline vector3f max(vector3f a, vector3f b) {
     return {std::max(a.x, b.x), std::max(a.y, b.y), std::max(a.z, b.z)};
 }
+
+inline float lerp(float val1, float val2, float coeff) {
+    return val1 * coeff + val2 * (1 - coeff);
+}

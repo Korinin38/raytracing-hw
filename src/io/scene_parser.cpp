@@ -150,6 +150,8 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
                 if (mesh_material.pbrMetallicRoughness.metallicFactor > 0.) {
                     material.type = Material::Type::Metallic;
                 }
+                material.metallic = (float)mesh_material.pbrMetallicRoughness.metallicFactor;
+                material.roughness = (float)mesh_material.pbrMetallicRoughness.roughnessFactor;
                 for (int j = 0; j < 3; ++j)
                     material.emission[j] = (float)mesh_material.emissiveFactor[j];
 
@@ -163,32 +165,79 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
                 material.color = {1.f, 1.f, 1.f};
             }
 
-            auto indices_accessor = model.accessors[p.indices];
-            auto position_accessor = model.accessors[p.attributes["POSITION"]];
+            unsigned char *indices_view;
+            float_t *position_view;
+            float_t *normal_view;
+            float_t *texcoord_view;
 
-            if (indices_accessor.type != TINYGLTF_TYPE_SCALAR)
-                throw std::runtime_error("Index type not supported");
-            if (position_accessor.type != TINYGLTF_TYPE_VEC3)
-                throw std::runtime_error("Position type not supported");
-            if (position_accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT)
-                throw std::runtime_error("Position component type not supported");
+            size_t indices_count;
+            int indices_component_type;
 
-            tinygltf::Buffer &indices_buffer = model.buffers[model.bufferViews[indices_accessor.bufferView].buffer];
-            tinygltf::Buffer &position_buffer = model.buffers[model.bufferViews[position_accessor.bufferView].buffer];
+            {
+                auto indices_accessor = model.accessors[p.indices];
+                if (indices_accessor.type != TINYGLTF_TYPE_SCALAR)
+                    throw std::runtime_error("Index type not supported");
+                tinygltf::Buffer &indices_buffer = model.buffers[model.bufferViews[indices_accessor.bufferView].buffer];
+                size_t index_start =
+                        model.bufferViews[indices_accessor.bufferView].byteOffset + indices_accessor.byteOffset;
+                indices_view = &indices_buffer.data[index_start];
 
-            size_t index_start = model.bufferViews[indices_accessor.bufferView].byteOffset + indices_accessor.byteOffset;
-            size_t position_start = model.bufferViews[position_accessor.bufferView].byteOffset + position_accessor.byteOffset;
 
-            unsigned char *indices_view = &indices_buffer.data[index_start];
-            unsigned char *position_view = &position_buffer.data[position_start];
+                auto position_accessor = model.accessors[p.attributes["POSITION"]];
+                if (position_accessor.type != TINYGLTF_TYPE_VEC3)
+                    throw std::runtime_error("Position type not supported");
+                if (position_accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT)
+                    throw std::runtime_error("Position component type not supported");
+                tinygltf::Buffer &position_buffer = model.buffers[model.bufferViews[position_accessor.bufferView].buffer];
+                size_t position_start =
+                        model.bufferViews[position_accessor.bufferView].byteOffset + position_accessor.byteOffset;
+                position_view = (float_t *) (&position_buffer.data[position_start]);
 
-            for (size_t i = 0; i < indices_accessor.count / 3; ++i) {
+
+                if (p.attributes.count("NORMAL") == 0) {
+                    normal_view = nullptr;
+                } else {
+                    auto normal_accessor = model.accessors[p.attributes["NORMAL"]];
+
+                    indices_count = indices_accessor.count;
+                    indices_component_type = indices_accessor.componentType;
+
+                    if (normal_accessor.type != TINYGLTF_TYPE_VEC3)
+                        throw std::runtime_error("Normal type not supported");
+                    if (normal_accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT)
+                        throw std::runtime_error("Normal component type not supported");
+
+                    tinygltf::Buffer &normal_buffer = model.buffers[model.bufferViews[normal_accessor.bufferView].buffer];
+
+                    size_t normal_start =
+                            model.bufferViews[normal_accessor.bufferView].byteOffset + normal_accessor.byteOffset;
+
+                    normal_view = (float_t *) (&normal_buffer.data[normal_start]);
+                }
+
+                if (p.attributes.count("TEXCOORD_0") == 0) {
+                    texcoord_view = nullptr;
+                } else {
+                auto texcoord_accessor = model.accessors[p.attributes["TEXCOORD_0"]];
+                if (texcoord_accessor.type != TINYGLTF_TYPE_VEC2)
+                    throw std::runtime_error("Texcoord type not supported");
+                if (texcoord_accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT)
+                    throw std::runtime_error("Texcoord component type not supported");
+                tinygltf::Buffer &texcoord_buffer = model.buffers[model.bufferViews[texcoord_accessor.bufferView].buffer];
+                size_t texcoord_start =
+                        model.bufferViews[texcoord_accessor.bufferView].byteOffset + texcoord_accessor.byteOffset;
+
+                texcoord_view = (float_t *) (&texcoord_buffer.data[texcoord_start]);
+                }
+            }
+
+            for (size_t i = 0; i < indices_count / 3; ++i) {
                 scene.objects.emplace_back(new Primitive());
                 Primitive &primitive = *scene.objects.back();
                 primitive.material = material;
 
                 size_t index[3];
-                switch (indices_accessor.componentType) {
+                switch (indices_component_type) {
                     case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: {
                         auto *indices_view_16u = (uint16_t *)indices_view;
                         index[0] = indices_view_16u[i * 3];
@@ -206,15 +255,34 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
                     default:
                         throw std::runtime_error("Index component type not supported");
                 }
-                auto *position_view_32f = (float_t *)position_view;
+
                 for (int v = 0; v < 3; ++v) {
                     for (int j = 0; j < 3; ++j) {
-                        primitive.position[v][j] = position_view_32f[index[v] * 3 + j];
+                        primitive.position[v][j] = position_view[index[v] * 3 + j];
                     }
                     primitive.position[v] = multiply(matrix4d(node.matrix), primitive.position[v]);
                 }
                 primitive.position[1] = primitive.position[1] - primitive.position[0];
                 primitive.position[2] = primitive.position[2] - primitive.position[0];
+
+                for (int v = 0; v < 3; ++v) {
+                    if (normal_view) {
+                        for (int j = 0; j < 3; ++j) {
+                            primitive.normal[v][j] = normal_view[index[v] * 3 + j];
+                        }
+                    } else {
+                        primitive.normal[v] = {0, 1, 0};
+                    }
+                    primitive.normal[v] = multiplyVector(matrix4d(node.matrix), primitive.normal[v]);
+                }
+
+                if (texcoord_view) {
+                    for (int v = 0; v < 2; ++v) {
+                        for (int j = 0; j < 3; ++j) {
+                            primitive.texcoord[v][j] = texcoord_view[index[v] * 3 + j];
+                        }
+                    }
+                }
             }
         }
     }

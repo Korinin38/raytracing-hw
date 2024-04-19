@@ -86,23 +86,6 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
         intersection.color = objects[intersection.object_id]->material.emission;
     }
 
-//    intersection.color = objects[intersection.object_id]->emission;
-
-//    for (int i = 0; i < objects.size(); ++i) {
-//        auto intersect_obj = objects[i]->intersect(r);
-//        if (!intersect_obj) continue;
-//
-//        if (intersect_obj.distance > intersection.distance) {
-//            continue;
-//        }
-//        intersection.object_id = i;
-//        intersection.successful = true;
-//        intersection.inside = intersect_obj.inside;
-//        intersection.distance = intersect_obj.distance;
-//        intersection.normal = intersect_obj.normal;
-//        intersection.color = objects[i]->emission;
-//    }
-
     // simple check with no light or color
     if (no_color || intersection.object_id >= objects.size())
         return intersection;
@@ -111,17 +94,20 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
         Primitive &obj = *objects[intersection.object_id].get();
 
         vector3f pos = r.origin + r.direction * intersection.distance;
+        vector3f shading_normal = objects[intersection.object_id]->get_shading_normal(intersection.local_coords);
+        if (intersection.inside)
+            shading_normal = -shading_normal;
 
         switch(obj.material.type) {
             case Material::Type::Diffuse: {
                 vector3f dir{};
                 float pdf = 0.f;
                 float cos;
-                dir = random_distributions_->sample(pos, intersection.normal, rng);
+                dir = random_distributions_->sample(pos, shading_normal, rng);
                 cos = dot(dir, intersection.normal);
                 if (cos <= 0.f)
                     break;
-                pdf = random_distributions_->pdf(pos, intersection.normal, dir);
+                pdf = random_distributions_->pdf(pos, shading_normal, dir);
                 if (pdf <= 0.f || isnanf(pdf))
                     break;
                 Ray reflect_ray(pos + dir * step, dir);
@@ -132,7 +118,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
                 break;
             }
             case Material::Type::Dielectric: {
-                float cos_in = -dot(intersection.normal, r.direction);
+                float cos_in = -dot(shading_normal, r.direction);
                 float eta_1 = 1.f;
                 float eta_2 = obj.material.ior;
                 if (intersection.inside)
@@ -155,7 +141,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
                 if (direction < reflection_coefficient)
                 {
                     // reflected
-                    vector3f dir = r.direction - 2 * intersection.normal * dot(intersection.normal, r.direction);
+                    vector3f dir = r.direction - 2 * shading_normal * dot(shading_normal, r.direction);
                     normalize(dir);
                     Ray reflect_ray(pos + dir * step, dir);
                     reflect_ray.power = r.power;
@@ -166,7 +152,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
                     float cos_out = std::sqrt(1 - sin_out * sin_out);
                     float coeff = eta_1 / eta_2;
 
-                    vector3f dir = coeff * r.direction + (coeff * cos_in - cos_out) * intersection.normal;
+                    vector3f dir = coeff * r.direction + (coeff * cos_in - cos_out) * shading_normal;
                     normalize(dir);
                     Ray reflect_ray(pos + dir * step, dir);
                     reflect_ray.power = r.power;
@@ -185,7 +171,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
                 break;
             }
             case Material::Type::Metallic: {
-                vector3f dir = r.direction - 2 * intersection.normal * dot(intersection.normal, r.direction);
+                vector3f dir = r.direction - 2 * shading_normal * dot(shading_normal, r.direction);
                 normalize(dir);
                 Ray reflect_ray(pos + dir * step, dir);
                 reflect_ray.power = r.power;

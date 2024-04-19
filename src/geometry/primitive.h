@@ -82,6 +82,8 @@ struct Material {
     float ior = 1.0;
     vector3f color = {0, 0, 0};
     vector3f emission = {0, 0, 0};
+    float metallic = 1.f;
+    float roughness = 1.f;
 };
 
 struct Primitive {
@@ -92,6 +94,7 @@ public:
     // 2: V
     vector3f position[3] = {};
     vector3f normal[3] = {};
+    vector2f texcoord[3] = {};
 
     Primitive() = default;
     bool emissive() const;
