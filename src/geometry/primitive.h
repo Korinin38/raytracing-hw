@@ -72,18 +72,12 @@ typedef struct Intersection {
 } Intersection;
 
 struct Material {
-    enum Type {
-        Diffuse,
-        Dielectric,
-        Metallic
-    };
-
-    Type type = Diffuse;
-    float ior = 1.0;
+    float ior = 1.f;
+    float alpha = 1.f;
     vector3f color = {0, 0, 0};
     vector3f emission = {0, 0, 0};
     float metallic = 1.f;
-    float roughness = 1.f;
+    float roughness2 = 1.f; // alpha
 };
 
 struct Primitive {
@@ -98,13 +92,11 @@ public:
 
     Primitive() = default;
     bool emissive() const;
+    bool transparent() const;
     [[nodiscard]] Intersection intersect(Ray ray) const;
 
     vector3f get_geometric_normal() const;
     vector3f get_shading_normal(vector2f local_coords) const;
-
-    vector3f to_global(vector3f local) const;
-    vector3f to_local(vector3f global) const;
 
     AABB aabb() const;
 

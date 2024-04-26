@@ -140,18 +140,21 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
                 for (int j = 0; j < 3; ++j)
                     material.color[j] = (float)mesh_material.pbrMetallicRoughness.baseColorFactor[j];
                 if (mesh_material.pbrMetallicRoughness.baseColorFactor[3] < 1.) {
-                    material.type = Material::Type::Dielectric;
+                    material.alpha = (float)mesh_material.pbrMetallicRoughness.baseColorFactor[3];
+//                    material.type = Material::Type::Dielectric;
                     if (mesh_material.extensions.count("KHR_materials_ior")) {
                         material.ior = (float)mesh_material.extensions["KHR_materials_ior"].Get("ior").GetNumberAsDouble();
                     } else {
                         material.ior = 1.5;
                     }
                 }
-                if (mesh_material.pbrMetallicRoughness.metallicFactor > 0.) {
-                    material.type = Material::Type::Metallic;
-                }
+//                if (mesh_material.pbrMetallicRoughness.metallicFactor > 0.) {
+//                    material.type = Material::Type::Metallic;
+//                }
                 material.metallic = (float)mesh_material.pbrMetallicRoughness.metallicFactor;
-                material.roughness = (float)mesh_material.pbrMetallicRoughness.roughnessFactor;
+                material.roughness2 = (float)mesh_material.pbrMetallicRoughness.roughnessFactor;
+                // make it squared
+                material.roughness2 *= material.roughness2;
                 for (int j = 0; j < 3; ++j)
                     material.emission[j] = (float)mesh_material.emissiveFactor[j];
 
@@ -161,7 +164,7 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
                     material.emission *= emission_strength;
                 }
             } else {
-                material.type = Material::Type::Diffuse;
+//                material.type = Material::Type::Diffuse;
                 material.color = {1.f, 1.f, 1.f};
             }
 
@@ -273,7 +276,7 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
                     } else {
                         primitive.normal[v] = {0, 1, 0};
                     }
-                    primitive.normal[v] = multiplyVector(matrix4d(node.matrix), primitive.normal[v]);
+                    primitive.normal[v] = ::normal(multiplyVector(matrix4d(node.matrix), primitive.normal[v]));
                 }
 
                 if (texcoord_view) {

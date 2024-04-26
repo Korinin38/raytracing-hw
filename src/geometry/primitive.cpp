@@ -89,6 +89,10 @@ vector3f Primitive::get_shading_normal(vector2f local_coords) const {
     return ::normal(normal[0] + local_coords.x * normal[1] + local_coords.y * normal[2]);
 }
 
+bool Primitive::transparent() const {
+    return (material.alpha < 1.f);
+}
+
 std::optional<float> AABB::intersect(Ray r) const {
     // got from https://github.com/erich666/GraphicsGems/blob/master/gems/RayBox.c
     // see: https://gamedev.stackexchange.com/questions/18436/most-efficient-aabb-vs-ray-collision-algorithms

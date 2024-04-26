@@ -46,6 +46,16 @@ public:
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
 };
 
+class VisibleNormalDistribution : public RandomDistribution {
+public:
+    vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
+    float pdf(vector3f point, vector3f normal, vector3f direction) override;
+    void update(vector2f alpha_, vector3f eye_direction_);
+private:
+    vector2f alpha;
+    vector3f eye_direction;
+};
+
 class Primitive;
 class Intersection;
 
@@ -88,9 +98,11 @@ public:
     explicit SceneDistribution(const std::vector<primitive_sh_ptr>& light_objects) : light(light_objects) {};
     vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
     float pdf(vector3f point, vector3f normal, vector3f direction) override;
+    void update_vndf(float roughness2, vector3f direction);
 private:
     ManyLightsDistribution light;
     CosineWeightedDistribution cosine;
+    VisibleNormalDistribution vndf;
 };
 
 namespace rng {

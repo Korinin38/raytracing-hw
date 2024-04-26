@@ -100,6 +100,97 @@ float LightDistribution::pdf(vector3f point, vector3f normal, vector3f direction
     return pdfWithHint(point, direction, intersection);
 }
 
+vector3f VisibleNormalDistribution::sample(vector3f point, vector3f normal, Engine &rng) {
+    // find rotation quaternion from local Z to absolute normal;
+    vector4f rotation;
+    vector3f Z{0.f, 0.f, 1.f};
+    {
+        vector3f a = cross(Z, normal);
+//        vector3f a = cross(normal, Z);
+        rotation.x = a.x;
+        rotation.y = a.y;
+        rotation.z = a.z;
+        rotation.w = 1 + normal.z;
+
+        normalize(rotation);
+    }
+
+    vector3f Ve = rotate(eye_direction, *rotation);
+
+    vector3f Vh = ::normal(vector3f{Ve.x * alpha.x, Ve.y * alpha.y, Ve.z});
+    float lensq = Vh.x * Vh.x + Vh.y * Vh.y;
+    vector3f T1 = lensq > 0 ? vector3f{-Vh.y, Vh.x, 0} * (1.f/ std::sqrt(lensq)) : vector3f{1,0,0};
+    vector3f T2 = cross(Vh, T1);
+
+    // get uniform sample on a disc
+    vector2f u{uniDist(rng) * 0.5f + .5f, uniDist(rng) * 0.5f + .5f};
+    float r = std::sqrt(u.x);
+    float phi = 2.f * M_PIf32 * u.y;
+    vector2f t{r * std::cos(phi), r * std::sin(phi)};
+//    vector2f t;
+//    {
+//        vector2f u{uniDist(rng), uniDist(rng)};
+//        while (u.x * u.x + u.y * u.y > 1.f) {
+//            u.x = uniDist(rng);
+//            u.y = uniDist(rng);
+//        }
+//        t = u;
+//    }
+
+    float s = 0.5f * (1.f + Vh.z);
+    t.y = (1.f - s) * std::sqrt(1.f - t.x * t.x) + s * t.y;
+
+    vector3f Nh = t.x * T1 + t.y * T2 + std::sqrt(std::max(0.f, 1.f - t.x * t.x - t.y * t.y)) * Vh;
+    vector3f Ne = ::normal(vector3f{alpha.x * Nh.x, alpha.y * Nh.y, std::max(0.f, Nh.z)});
+
+    Ne = rotate(Ne, rotation);
+
+//    if (std::abs(dot(Ne * dot(Ne, eye_direction), Ne) - 1) > 1e-4) {
+//        int a = 1;
+//    }
+    return ::normal(2 * Ne * dot(Ne, eye_direction) - eye_direction);
+}
+
+float VisibleNormalDistribution::pdf(vector3f point, vector3f normal, vector3f direction) {
+    // find rotation quaternion from to absolute normal to local Z
+    vector4f rotation;
+    vector3f Z{0.f, 0.f, 1.f};
+    {
+        vector3f a = cross(normal, Z);
+//        vector3f a = cross(Z, normal);
+        rotation.x = a.x;
+        rotation.y = a.y;
+        rotation.z = a.z;
+        rotation.w = 1 + normal.z;
+
+        normalize(rotation);
+    }
+
+    vector3f sample_normal = ::normal(direction + eye_direction);
+
+    if (dot(eye_direction, sample_normal) < 0.f)
+        return 0.f;
+
+    vector3f V = rotate(eye_direction, rotation);
+    vector3f Ni = rotate(sample_normal, rotation);
+
+    float ax2 = alpha.x * alpha.x;
+    float ay2 = alpha.y * alpha.y;
+
+    float invD = M_PIf32 * alpha.x * alpha.y * std::pow(Ni.x * Ni.x / ax2 + Ni.y * Ni.y / ay2 + Ni.z * Ni.z, 2);
+    float invG1 = 0.5f + 0.5f * std::sqrt(1.f + (ax2 * V.x * V.x + ay2 * V.y * V.y) / (V.z * V.z));
+
+    return invD * invG1;
+//    return invD * invG1 / (4.f * V.z);
+}
+
+void VisibleNormalDistribution::update(vector2f alpha_, vector3f eye_direction_) {
+//    alpha = alpha_;
+    alpha.x = std::max(0.01f, alpha_.x);
+    alpha.y = std::max(0.01f, alpha_.y);
+    eye_direction = eye_direction_;
+}
+
 void MixedDistribution::add_distr(const random_distribution_sh_ptr& dist) {
     distributions.push_back(dist);
 }
@@ -167,15 +258,25 @@ size_t ManyLightsDistribution::size() const {
 }
 
 vector3f SceneDistribution::sample(vector3f point, vector3f normal, Engine &rng) {
-    float sample = UniformDistribution::sample(rng);
-    if (sample < 0.f || !light.size())
+    float sample = (UniformDistribution::sample(rng) + 1.f);
+//    float sample = (UniformDistribution::sample(rng) + 1.f) * 3 * 0.5f;
+//    float sample = 3.f;
+    if (sample <= 1.f || !light.size())
         return cosine.sample(point, normal, rng);
-    else
+    else if (sample <= 2.f)
         return light.sample(point, normal, rng);
+    else
+        return vndf.sample(point, normal, rng);
 }
 
 float SceneDistribution::pdf(vector3f point, vector3f normal, vector3f direction) {
     if (!light.size())
         return cosine.pdf(point, normal, direction);
-    return (cosine.pdf(point, normal, direction) + light.pdf(point, normal, direction)) * 0.5f;
+//    return (cosine.pdf(point, normal, direction) + light.pdf(point, normal, direction) + vndf.pdf(point, normal, direction)) / 3;
+    return (cosine.pdf(point, normal, direction) + light.pdf(point, normal, direction)) / 2;
+    return vndf.pdf(point, normal, direction);
+}
+
+void SceneDistribution::update_vndf(float roughness2, vector3f direction) {
+    vndf.update({roughness2, roughness2}, -direction);
 }

@@ -34,6 +34,8 @@ void Scene::render(ProgressFunc callback) const {
                 Ray r = camera->cast_in_pixel(pix_pos, pix_offset);
                 r.power = ray_depth;
 
+                if (i == 1 && j == 15)
+                    int a = 1;
                 auto intersection = intersect(r, rng);
                 sample_canvas[j * camera->canvas.width() + i] += intersection.color;
             }
@@ -94,92 +96,77 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
         Primitive &obj = *objects[intersection.object_id].get();
 
         vector3f pos = r.origin + r.direction * intersection.distance;
-        vector3f shading_normal = objects[intersection.object_id]->get_shading_normal(intersection.local_coords);
+//        vector3f shading_normal = obj.get_shading_normal(intersection.local_coords);
+//        if (intersection.inside)
+//            shading_normal = -shading_normal;
+        vector3f shading_normal = intersection.normal;
+
+        vector3f dir{};
+        float pdf = 0.f;
+        float cos;
+        random_distributions_->update_vndf(obj.material.roughness2, r.direction);
+        dir = random_distributions_->sample(pos, shading_normal, rng);
+        cos = dot(dir, intersection.normal);
+        if (cos <= 0.f)
+            return intersection;
+        pdf = random_distributions_->pdf(pos, shading_normal, dir);
+        if (pdf <= 0.f || isnanf(pdf))
+            return intersection;
+        Ray reflect_ray(pos + dir * step, dir);
+        reflect_ray.power = r.power;
+        auto reflect_inter = intersect(reflect_ray, rng);
+        float coeff = 1 / pdf;
+
+        vector3f half = normal(dir - r.direction);
+
+        vector3f diffuse_color = lerp(reflect_inter.color, vector3f{0.f, 0.f, 0.f}, obj.material.metallic);
+        const float f0_base = 0.04f;
+        vector3f f0 = lerp(vector3f{f0_base, f0_base, f0_base}, reflect_inter.color, obj.material.metallic);
+        float alpha = std::max(0.03f, obj.material.roughness2);
+        vector3f F = f0 + (vector3f{1.f, 1.f, 1.f} - f0) * std::pow(1 - std::abs(dot(-r.direction, half)), 5.f);
+        vector3f f_diffuse = (vector3f{1.f, 1.f, 1.f} - F) * diffuse_color * M_1_PI;
+
+        float specular_visibility = smith_joint_masking_shadowing_function(alpha, shading_normal, half, -r.direction, dir)
+                                       * (1.f / (4 * std::abs(dot(shading_normal, r.direction)) * std::abs(dot(shading_normal, dir))));
+        vector3f f_specular = F * ggx_microfacet_distribution(alpha, shading_normal, half) * specular_visibility;
+
+        intersection.color += obj.material.color * coeff * (f_diffuse + f_specular) * cos * obj.material.alpha;
+
+        return intersection;
+
+        // refraction
+        if (!obj.transparent())
+            return intersection;
+        float cos_in = -dot(shading_normal, r.direction);
+        float eta_1 = 1.f;
+        float eta_2 = obj.material.ior;
         if (intersection.inside)
-            shading_normal = -shading_normal;
+            std::swap(eta_1, eta_2);
 
-        switch(obj.material.type) {
-            case Material::Type::Diffuse: {
-                vector3f dir{};
-                float pdf = 0.f;
-                float cos;
-                dir = random_distributions_->sample(pos, shading_normal, rng);
-                cos = dot(dir, intersection.normal);
-                if (cos <= 0.f)
-                    break;
-                pdf = random_distributions_->pdf(pos, shading_normal, dir);
-                if (pdf <= 0.f || isnanf(pdf))
-                    break;
-                Ray reflect_ray(pos + dir * step, dir);
-                reflect_ray.power = r.power;
-                auto reflect_inter = intersect(reflect_ray, rng);
-                float coeff = M_1_PIf32 / pdf;
-                intersection.color += obj.material.color * coeff * reflect_inter.color * cos;
-                break;
-            }
-            case Material::Type::Dielectric: {
-                float cos_in = -dot(shading_normal, r.direction);
-                float eta_1 = 1.f;
-                float eta_2 = obj.material.ior;
-                if (intersection.inside)
-                    std::swap(eta_1, eta_2);
-                float refractive_index = eta_1 / eta_2;
-                float sin_out = refractive_index * std::sqrt(1 - cos_in * cos_in);
+        float refractive_index = eta_1 / eta_2;
+        float sin_out = refractive_index * std::sqrt(1 - cos_in * cos_in);
 
-                float direction;
-                float reflection_coefficient;
-                if (sin_out >= 1.f) {
-                    direction = 0;
-                    reflection_coefficient = 1;
-                } else {
-                    float r0 = std::pow((eta_1 - eta_2) / (eta_1 + eta_2), 2.f);
-                    reflection_coefficient = r0 + (1 - r0) * std::pow(1 - cos_in, 5.f);
-                    uniform_float_d ray_chooser(0.f, 1.f);
-                    direction = ray_chooser(rng);
-                }
-
-                if (direction < reflection_coefficient)
-                {
-                    // reflected
-                    vector3f dir = r.direction - 2 * shading_normal * dot(shading_normal, r.direction);
-                    normalize(dir);
-                    Ray reflect_ray(pos + dir * step, dir);
-                    reflect_ray.power = r.power;
-                    auto reflect_inter = intersect(reflect_ray, rng);
-                    intersection.color += reflect_inter.color;
-                } else {
-                    // refracted
-                    float cos_out = std::sqrt(1 - sin_out * sin_out);
-                    float coeff = eta_1 / eta_2;
-
-                    vector3f dir = coeff * r.direction + (coeff * cos_in - cos_out) * shading_normal;
-                    normalize(dir);
-                    Ray reflect_ray(pos + dir * step, dir);
-                    reflect_ray.power = r.power;
-                    auto refract_inter = intersect(reflect_ray, rng);
-
-                    vector3f refract_color{};
-                    if (refract_inter) {
-                        refract_color = refract_inter.color;
-                        if (!intersection.inside)
-                            refract_color *= obj.material.color;
-                    } else {
-                        refract_color = bg_color;
-                    }
-                    intersection.color += refract_color;
-                }
-                break;
-            }
-            case Material::Type::Metallic: {
-                vector3f dir = r.direction - 2 * shading_normal * dot(shading_normal, r.direction);
-                normalize(dir);
-                Ray reflect_ray(pos + dir * step, dir);
-                reflect_ray.power = r.power;
-                auto reflect_inter = intersect(reflect_ray, rng);
-                intersection.color += obj.material.color * reflect_inter.color;
-                break;
-            }
+        if (sin_out >= 1.f) {
+            return intersection;
         }
+        float cos_out = std::sqrt(1 - sin_out * sin_out);
+        float refr_coeff = eta_1 / eta_2;
+
+        vector3f refr_dir = refr_coeff * r.direction + (refr_coeff * cos_in - cos_out) * shading_normal;
+        normalize(refr_dir);
+        Ray refract_ray(pos + refr_dir * step, refr_dir);
+        refract_ray.power = r.power;
+        auto refract_inter = intersect(refract_ray, rng);
+
+        vector3f refract_color{};
+        if (refract_inter) {
+            refract_color = refract_inter.color;
+            if (!intersection.inside)
+                refract_color *= obj.material.color;
+        } else {
+            refract_color = bg_color;
+        }
+        intersection.color += refract_color * (1.f - obj.material.alpha);
     }
     return intersection;
 }
@@ -216,7 +203,7 @@ Scene::Scene(camera_uniq_ptr &camera_, std::vector<primitive_sh_ptr> objects_, v
 
     random_distributions_ = std::make_shared<SceneDistribution>(objects);
 //    mixed_distribution_sh_ptr m = std::make_shared<MixedDistribution>();
-////    m->add_distr(std::make_shared<UniformDistribution>());
+//    m->add_distr(std::make_shared<UniformDistribution>());
 //    m->add_distr(std::make_shared<CosineWeightedDistribution>());
 //    if (light_distr->size() > 0)
 //        m->add_distr(light_distr);

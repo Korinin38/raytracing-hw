@@ -29,5 +29,5 @@ public:
 private:
     const float max_distance;
     const float gamma_ = 1.f / 2.2f;
-    mutable random_distribution_sh_ptr random_distributions_;
+    mutable scene_distribution_sh_ptr random_distributions_;
 };

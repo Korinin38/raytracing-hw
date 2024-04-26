@@ -378,6 +378,28 @@ inline vector3f max(vector3f a, vector3f b) {
     return {std::max(a.x, b.x), std::max(a.y, b.y), std::max(a.z, b.z)};
 }
 
-inline float lerp(float val1, float val2, float coeff) {
-    return val1 * coeff + val2 * (1 - coeff);
+inline vector3f lerp(vector3f val1, vector3f val2, float coeff) {
+    return val1 * (1 - coeff) + val2 * coeff;
+}
+
+// see https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#specular-brdf
+inline float ggx_microfacet_distribution(float alpha, vector3f N, vector3f H) {
+    float alpha2 = alpha * alpha;
+    float NdotH = dot(N, H);
+    if (NdotH <= 0)
+        return 0;
+    return alpha2 * M_1_PIf32 / ((NdotH * NdotH * (alpha2 - 1) + 1) * (NdotH * NdotH * (alpha2 - 1) + 1));
+}
+
+// see https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#specular-brdf
+inline float smith_joint_masking_shadowing_function(float alpha, vector3f N, vector3f H, vector3f V, vector3f L) {
+    float alpha2 = alpha * alpha;
+    if (dot(N, H) <= 0 || dot(V, H) <= 0)
+        return 0;
+    float Ndot[2] = {std::abs(dot(N, L)), std::abs(dot(N, V))};
+    float res = 1.f;
+    for (auto ndot : Ndot) {
+        res *= 2 * ndot / (ndot + std::sqrt(alpha2 + (1 - alpha2) * ndot * ndot));
+    }
+    return res;
 }
