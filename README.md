@@ -4,6 +4,8 @@ Repository for Raytracing project.
 * CMake v3.27 or newer
 * GNU GCC 10.5 or newer
 
+Optional: OpenMP
+
 ## Installation and execution
 To build: [build.sh](build.sh)  
 To run: [run.sh](run.sh)
