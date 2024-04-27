@@ -403,3 +403,9 @@ inline float smith_joint_masking_shadowing_function(float alpha, vector3f N, vec
     }
     return res;
 }
+
+inline vector4f quat_from_two_vectors(vector3f u, vector3f v) {
+//    vector3f w = normal(cross(u, v));
+    vector3f w = cross(u, v);
+    return normal(vector4f{w.x, w.y, w.z, 1.f + dot(u, v)});
+}

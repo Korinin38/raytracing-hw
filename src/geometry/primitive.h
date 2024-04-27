@@ -74,7 +74,7 @@ typedef struct Intersection {
 struct Material {
     float ior = 1.f;
     float alpha = 1.f;
-    vector3f color = {0, 0, 0};
+    vector3f color = {1.f, 1.f, 1.f};
     vector3f emission = {0, 0, 0};
     float metallic = 1.f;
     float roughness2 = 1.f; // alpha

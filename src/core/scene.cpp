@@ -24,7 +24,7 @@ void Scene::render(ProgressFunc callback) const {
     else
         std::cout << "Render launched." << std::endl;
 
-    #pragma omp parallel for shared(t, offset, sample_canvas) schedule(guided, 16) collapse(2)
+//    #pragma omp parallel for shared(t, offset, sample_canvas) schedule(guided, 16) collapse(2)
     for (int j = 0; j < camera->canvas.height(); ++j) {
         for (int i = 0; i < camera->canvas.width(); ++i) {
             Engine rng = rng::get_generator(j * camera->canvas.width() + i);
@@ -34,8 +34,6 @@ void Scene::render(ProgressFunc callback) const {
                 Ray r = camera->cast_in_pixel(pix_pos, pix_offset);
                 r.power = ray_depth;
 
-                if (i == 1 && j == 15)
-                    int a = 1;
                 auto intersection = intersect(r, rng);
                 sample_canvas[j * camera->canvas.width() + i] += intersection.color;
             }
@@ -60,7 +58,6 @@ void Scene::render(ProgressFunc callback) const {
             camera->canvas.set({i, j}, normal_to_ch8bit(color));
         }
     }
-//    camera->canvas.smooth();
 }
 
 void Scene::draw_into(const std::string &filename) const {
@@ -96,10 +93,9 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
         Primitive &obj = *objects[intersection.object_id].get();
 
         vector3f pos = r.origin + r.direction * intersection.distance;
-//        vector3f shading_normal = obj.get_shading_normal(intersection.local_coords);
-//        if (intersection.inside)
-//            shading_normal = -shading_normal;
-        vector3f shading_normal = intersection.normal;
+        vector3f shading_normal = obj.get_shading_normal(intersection.local_coords);
+        if (intersection.inside)
+            shading_normal = -shading_normal;
 
         vector3f dir{};
         float pdf = 0.f;
