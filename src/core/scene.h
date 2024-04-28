@@ -13,7 +13,7 @@ typedef std::function<bool(int, timer&)> ProgressFunc;
 
 struct Scene {
 public:
-    Scene(camera_uniq_ptr &camera_, std::vector<primitive_sh_ptr> objects, vector3f bg_color, int ray_depth, int samples, float max_distance);
+    Scene(camera_uniq_ptr &camera_, std::vector<primitive_sh_ptr> objects, int ray_depth, int samples, float max_distance);
 
     void render(ProgressFunc = nullptr) const;
     void draw_into(const std::string &filename) const;
@@ -29,5 +29,5 @@ public:
 private:
     const float max_distance;
     const float gamma_ = 1.f / 2.2f;
-    mutable scene_distribution_sh_ptr random_distributions_;
+    scene_distribution_sh_ptr scene_distribution_;
 };

@@ -14,7 +14,6 @@
 
 struct ScenePartial {
     camera_uniq_ptr camera = nullptr;
-    vector3f bg_color{};
     int ray_depth = 6;
     int samples = 256;
     std::vector<primitive_sh_ptr> objects;
@@ -290,5 +289,5 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
         }
     }
 
-    return {scene.camera, scene.objects, scene.bg_color, scene.ray_depth, scene.samples, scene.max_distance};
+    return {scene.camera, scene.objects, scene.ray_depth, scene.samples, scene.max_distance};
 }

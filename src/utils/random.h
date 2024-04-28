@@ -16,96 +16,67 @@ typedef std::normal_distribution<float> normal_d;
 //typedef pcg32 RandomGenerator;
 typedef std::minstd_rand Engine;
 
-class RandomDistribution;
+namespace rng {
 class MixedDistribution;
 class SceneDistribution;
-typedef std::shared_ptr<RandomDistribution> random_distribution_sh_ptr;
-typedef std::shared_ptr<MixedDistribution> mixed_distribution_sh_ptr;
-typedef std::shared_ptr<SceneDistribution> scene_distribution_sh_ptr;
-
-class RandomDistribution {
-public:
-    // get direction in a hemisphere defined by normal
-    virtual vector3f sample(vector3f point, vector3f normal, Engine &rng) = 0;
-    // get pdf of direction that we got by sample
-    virtual float pdf(vector3f point, vector3f normal, vector3f direction) = 0;
-};
-
-class UniformDistribution : public RandomDistribution {
-public:
-    static float sample(Engine &rng);
-    static float norm_sample(Engine &rng);
-    static vector3f uni_sphere_sample(Engine &rng);
-    vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
-    float pdf(vector3f point, vector3f normal, vector3f direction) override;
-};
-
-class CosineWeightedDistribution : public RandomDistribution {
-public:
-    vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
-    float pdf(vector3f point, vector3f normal, vector3f direction) override;
-};
-
-class VisibleNormalDistribution : public RandomDistribution {
-public:
-    vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
-    float pdf(vector3f point, vector3f normal, vector3f direction) override;
-    void update(vector2f alpha_, vector3f eye_direction_);
-private:
-    vector2f alpha;
-    vector3f eye_direction;
-};
-
-class Primitive;
-class Intersection;
-
-class LightDistribution : public RandomDistribution {
-public:
-    explicit LightDistribution(const Primitive &object);
-    vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
-    float pdf(vector3f point, vector3f normal, vector3f direction) override;
-    inline float pdfWithHint(vector3f point, vector3f direction, Intersection hint);
-private:
-    const Primitive *primitive;
-};
-
-class MixedDistribution : public RandomDistribution {
-public:
-    vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
-    float pdf(vector3f point, vector3f normal, vector3f direction) override;
-    void add_distr(const random_distribution_sh_ptr& dist);
-    [[nodiscard]] size_t size() const;
-private:
-    std::vector<random_distribution_sh_ptr> distributions;
-};
-
-class ManyLightsDistribution : public RandomDistribution {
-public:
-    explicit ManyLightsDistribution(const std::vector<primitive_sh_ptr>& primitives);
-    vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
-    float pdf(vector3f point, vector3f normal, vector3f direction) override;
-//    void add_distr(const random_distribution_sh_ptr& dist);
-//    [[nodiscard]] size_t size() const;
-    size_t size() const;
-private:
-    std::vector<primitive_sh_ptr> objects;
-    std::vector<LightDistribution> distributions;
-    BVH bvh;
-};
-
-class SceneDistribution : public RandomDistribution {
-public:
-    explicit SceneDistribution(const std::vector<primitive_sh_ptr>& light_objects) : light(light_objects) {};
-    vector3f sample(vector3f point, vector3f normal, Engine &rng) override;
-    float pdf(vector3f point, vector3f normal, vector3f direction) override;
-    void update_vndf(float roughness2, vector3f direction);
-private:
-    ManyLightsDistribution light;
-    CosineWeightedDistribution cosine;
-    VisibleNormalDistribution vndf;
-};
+}
+typedef std::shared_ptr<rng::MixedDistribution> mixed_distribution_sh_ptr;
+typedef std::shared_ptr<rng::SceneDistribution> scene_distribution_sh_ptr;
 
 namespace rng {
-Engine get_generator(size_t seed = 0);
-//vector3f get_sphere(Engine rng);
+    Engine get_generator(size_t seed = 0);
+
+namespace uniform {
+    float sample(Engine &rng);
+    vector3f sphere(Engine &rng);
+    vector3f hemisphere(vector3f normal, Engine &rng);
+    float pdf();
+}
+
+namespace normal {
+    float sample(Engine &rng);
+}
+
+namespace cosine_weighted {
+    static vector3f sample(vector3f normal, Engine &rng);
+    static float pdf(vector3f normal, vector3f direction);
+}
+
+namespace visible_normal {
+    static vector3f sample(vector3f normal, vector3f eye_direction, float alpha, Engine &rng);
+    static float pdf(vector3f normal, vector3f eye_direction, float alpha, vector3f direction);
+}
+
+    class LightDistribution {
+    public:
+        explicit LightDistribution(const Primitive &object);
+        vector3f sample(vector3f point, Engine &rng) const;
+        float pdf(vector3f point, vector3f direction) const;
+        inline float pdfWithHint(vector3f direction, Intersection hint) const;
+    private:
+        const Primitive *primitive;
+    };
+
+    class ManyLightsDistribution {
+    public:
+        explicit ManyLightsDistribution(const std::vector<primitive_sh_ptr>& primitives);
+        vector3f sample(vector3f point, Engine &rng) const;
+        float pdf(vector3f point, vector3f direction) const;
+    //    void add_distr(const random_distribution_sh_ptr& dist);
+    //    [[nodiscard]] size_t size() const;
+        size_t size() const;
+    private:
+        std::vector<primitive_sh_ptr> objects;
+        std::vector<LightDistribution> distributions;
+        BVH bvh;
+    };
+
+    class SceneDistribution {
+    public:
+        explicit SceneDistribution(const std::vector<primitive_sh_ptr>& light_objects) : light(light_objects) {};
+        vector3f sample(const vector3f &point, const vector3f &normal, const vector3f &eye_direction, float roughness2, Engine &rng) const;
+        float pdf(const vector3f &point, const vector3f &normal, const vector3f &eye_direction, float roughness2, const vector3f &direction) const;
+    private:
+        ManyLightsDistribution light;
+    };
 }
