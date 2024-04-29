@@ -386,15 +386,15 @@ inline vector3f lerp(vector3f val1, vector3f val2, float coeff) {
 inline float ggx_microfacet_distribution(float alpha, vector3f N, vector3f H) {
     float alpha2 = alpha * alpha;
     float NdotH = dot(N, H);
-    if (NdotH <= 0)
-        return 0;
+//    if (NdotH <= 0)
+//        return 0;
     return alpha2 * M_1_PIf32 / ((NdotH * NdotH * (alpha2 - 1) + 1) * (NdotH * NdotH * (alpha2 - 1) + 1));
 }
 
 // see https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#specular-brdf
-inline float smith_joint_masking_shadowing_function(float alpha, vector3f N, vector3f H, vector3f V, vector3f L) {
+inline float smith_joint_masking_shadowing_function(float alpha, vector3f N, vector3f V, vector3f L) {
     float alpha2 = alpha * alpha;
-    if (dot(N, H) <= 0 || dot(V, H) <= 0)
+    if (dot(N, L) <= 0 || dot(N, V) <= 0)
         return 0;
     float Ndot[2] = {std::abs(dot(N, L)), std::abs(dot(N, V))};
     float res = 1.f;
@@ -408,4 +408,17 @@ inline vector4f quat_from_two_vectors(vector3f u, vector3f v) {
 //    vector3f w = normal(cross(u, v));
     vector3f w = cross(u, v);
     return normal(vector4f{w.x, w.y, w.z, 1.f + dot(u, v)});
+}
+
+inline vector3f conductor_fresnel(vector3f f0, float VdotH) {
+    vector3f a;
+    for (int i = 0; i < 3; ++i) {
+        float k = f0[i];
+        a[i] = (k + (1.f - k) * (float) std::pow(1.f - VdotH, 5));
+    }
+    return a;
+}
+
+inline float conductor_fresnel(float f0, float VdotH) {
+    return (f0 + (1.f - f0) * (float) std::pow(1.f - VdotH, 5));
 }

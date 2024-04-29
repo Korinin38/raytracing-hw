@@ -86,7 +86,7 @@ vector3f Primitive::get_geometric_normal() const {
 vector3f Primitive::get_shading_normal(vector2f local_coords) const {
     if (local_coords.x < 0 || local_coords.x > 1 || local_coords.y < 0 || local_coords.x + local_coords.y > 1)
         throw std::runtime_error("Invalid local coordinates");
-    return ::normal(normal[0] + local_coords.x * normal[1] + local_coords.y * normal[2]);
+    return ::normal((1 - local_coords.x - local_coords.y) * normal[0] + local_coords.x * normal[1] + local_coords.y * normal[2]);
 }
 
 bool Primitive::transparent() const {

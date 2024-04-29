@@ -110,18 +110,21 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
 
     vector3f half = normal(dir - r.direction);
 
-    vector3f diffuse_color = lerp(obj.material.color, vector3f{0.f, 0.f, 0.f}, obj.material.metallic);
     const float f0_base = 0.04f;
-    vector3f f0 = lerp(vector3f{f0_base, f0_base, f0_base}, obj.material.color, obj.material.metallic);
-    float alpha = std::max(0.03f, obj.material.roughness2);
-    vector3f F = f0 + (vector3f{1.f, 1.f, 1.f} - f0) * std::pow(1 - std::abs(dot(-r.direction, half)), 5.f);
-    vector3f f_diffuse = (vector3f{1.f, 1.f, 1.f} - F) * diffuse_color * M_1_PI;
 
-    float specular_visibility = smith_joint_masking_shadowing_function(alpha, shading_normal, half, -r.direction, dir)
+    float specular_visibility = smith_joint_masking_shadowing_function(obj.material.roughness2, shading_normal, -r.direction, dir)
                                    * (1.f / (4 * std::abs(dot(shading_normal, r.direction)) * std::abs(dot(shading_normal, dir))));
-    vector3f f_specular = F * ggx_microfacet_distribution(alpha, shading_normal, half) * specular_visibility;
+    float specular_brdf = ggx_microfacet_distribution(obj.material.roughness2, shading_normal, half) * specular_visibility;
 
-    intersection.color += reflect_inter.color * coeff * (f_diffuse + f_specular) * dot(dir, shading_normal) * obj.material.alpha;
+    float VdotH = std::abs(dot(-r.direction, half));
+    vector3f metal_brdf = specular_brdf * conductor_fresnel(obj.material.color, VdotH);
+    vector3f diffuse_brdf = obj.material.color * M_1_PIf32;
+    float dielectric_specular_coeff = conductor_fresnel(f0_base, VdotH);
+    vector3f dielectric_brdf = diffuse_brdf * (1 - dielectric_specular_coeff) + vector3f{1.f, 1.f, 1.f} * specular_brdf * dielectric_specular_coeff;
+
+    vector3f material = dielectric_brdf * (1 - obj.material.metallic) + metal_brdf * obj.material.metallic;
+
+    intersection.color += reflect_inter.color * coeff * (material) * dot(dir, shading_normal) * obj.material.alpha;
 
     return intersection;
 
@@ -165,7 +168,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
 Scene::Scene(camera_uniq_ptr &camera_, std::vector<primitive_sh_ptr> objects_, int ray_depth_, int samples_, float max_distance)
     : camera(std::move(camera_)),
       objects(std::move(objects_)),
-      bg_color({}),
+      bg_color({0.f, 0.f, 0.f}),
       ray_depth(ray_depth_),
       samples(samples_),
       max_distance(max_distance)
@@ -187,7 +190,7 @@ Scene::Scene(camera_uniq_ptr &camera_, std::vector<primitive_sh_ptr> objects_, i
     std::cout << "At most " << max_node_count << " objects in single node." << std::endl;
 
     // NB: as objects with roughness < eps are breaking the view, we clamp it to 0.03f;
-    const float ROUGHNESS_LIMIT = 0.01f;
+    const float ROUGHNESS_LIMIT = 0.03f;
     for (auto &o : objects)
         o->material.roughness2 = std::max(ROUGHNESS_LIMIT, o->material.roughness2);
 
