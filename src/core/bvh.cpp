@@ -2,33 +2,6 @@
 
 #include <algorithm>
 
-size_t buildHelperNaive(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb, size_t first, size_t count, size_t &dim) {
-    auto begin = primitives.begin() + (ptrdiff_t)first;
-    auto end = primitives.begin() + (ptrdiff_t)first + (ptrdiff_t)count;
-
-    vector3f aabb_size = node_aabb.size();
-    int aabb_widest_axis = 0;
-    {
-        float max_size = aabb_size.x;
-        for (int i = 0; i < 3; ++i) {
-            if (max_size < aabb_size[i]) {
-                max_size = aabb_size[i];
-                aabb_widest_axis = i;
-            }
-        }
-    }
-
-    dim = aabb_widest_axis;
-    // partition
-    float middle = node_aabb.min[aabb_widest_axis] + aabb_size[aabb_widest_axis] / 2;
-    std::function<bool(primitive_sh_ptr)> pred = [aabb_widest_axis, middle](const primitive_sh_ptr &a) {
-        return ((a.get())->aabb().max[aabb_widest_axis] < middle);
-    };
-
-    auto part = std::partition(begin, end, pred);
-    return (part - begin);
-}
-
 size_t buildHelperSAH(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb, size_t first, size_t count, size_t &best_dim) {
     const int BIN_SIZE = 1;
 
@@ -38,9 +11,7 @@ size_t buildHelperSAH(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb,
     auto end = primitives.begin() + (ptrdiff_t)first + (ptrdiff_t)count;
 #endif
 
-    // todo: change BIN_SIZE?
     const int bins_count = ((count - 1) / BIN_SIZE) + 1;
-//        const int bins_count = count;
     std::vector<AABB> sah_bins(bins_count);
     std::vector<float> sah_left_scan(bins_count);
     std::vector<float> sah_right_scan(bins_count);
@@ -168,10 +139,6 @@ size_t BVH::buildNode(std::vector<StackBuildNode> &nodes_q, std::vector<primitiv
         return place;
     }
 
-//    auto partition = buildHelperNaive(primitives, cur.aabb, first, count);
-//    auto partition = buildHelperSAH(primitives, cur.aabb, first, count);
-//    size_t res = buildHelperNaive(primitives, nodes[place].aabb, first, count, nodes[place].split_dim);
-//    auto partition = begin + res;
     size_t res = buildHelperSAH(primitives, nodes[place].aabb, first, count, nodes[place].split_dim);
     auto partition = begin + res;
 
@@ -205,19 +172,6 @@ void BVH::buildBVH(std::vector<primitive_sh_ptr> &primitives) {
         buildNode(nodes_q, primitives);
         a++;
     }
-#ifndef NDEBUG
-    for (auto & node : nodes) {
-        if (node.primitive_count == 0)
-            continue;
-        const AABB &n_aabb = node.aabb;
-        for (int i = node.first_primitive_id; i < node.first_primitive_id + node.primitive_count; ++i) {
-            const AABB &p_aabb = primitives[i]->aabb();
-            if (!(n_aabb.in(p_aabb.max) && n_aabb.in(p_aabb.min))) {
-                throw std::runtime_error("Object outside node's AABB");
-            }
-        }
-    }
-#endif
 }
 
 Intersection BVH::intersectHelper(const std::vector<primitive_sh_ptr> &primitives, Ray r, size_t node_id) const {

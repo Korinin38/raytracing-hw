@@ -91,9 +91,10 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
     Primitive &obj = *objects[intersection.object_id].get();
 
     vector3f pos = r.origin + r.direction * intersection.distance;
-    vector3f shading_normal = obj.get_shading_normal(intersection.local_coords);
-    if (intersection.inside)
-        shading_normal = -shading_normal;
+//    vector3f shading_normal = obj.get_shading_normal(intersection.local_coords);
+//    if (intersection.inside)
+//        shading_normal = -shading_normal;
+    vector3f shading_normal = intersection.normal;
 
     vector3f dir{};
     float pdf = 0.f;

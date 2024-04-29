@@ -273,7 +273,7 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
                             primitive.normal[v][j] = normal_view[index[v] * 3 + j];
                         }
                     } else {
-                        primitive.normal[v] = {0, 1, 0};
+                        primitive.normal[v] = {0, 0, 1};
                     }
                     primitive.normal[v] = ::normal(multiplyVector(matrix4d(node.matrix), primitive.normal[v]));
                 }
