@@ -97,10 +97,8 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
 
     vector3f dir{};
     float pdf = 0.f;
-    float cos;
     dir = scene_distribution_->sample(pos, shading_normal, -r.direction, obj.material.roughness2, rng);
-    cos = dot(dir, intersection.normal);
-    if (cos <= 0.f)
+    if (dot(dir, intersection.normal) <= 0.f)
         return intersection;
     pdf = scene_distribution_->pdf(pos, shading_normal, -r.direction, obj.material.roughness2, dir);
     if (pdf <= 0.f || isnanf(pdf))
@@ -112,9 +110,9 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
 
     vector3f half = normal(dir - r.direction);
 
-    vector3f diffuse_color = lerp(reflect_inter.color, vector3f{0.f, 0.f, 0.f}, obj.material.metallic);
+    vector3f diffuse_color = lerp(obj.material.color, vector3f{0.f, 0.f, 0.f}, obj.material.metallic);
     const float f0_base = 0.04f;
-    vector3f f0 = lerp(vector3f{f0_base, f0_base, f0_base}, reflect_inter.color, obj.material.metallic);
+    vector3f f0 = lerp(vector3f{f0_base, f0_base, f0_base}, obj.material.color, obj.material.metallic);
     float alpha = std::max(0.03f, obj.material.roughness2);
     vector3f F = f0 + (vector3f{1.f, 1.f, 1.f} - f0) * std::pow(1 - std::abs(dot(-r.direction, half)), 5.f);
     vector3f f_diffuse = (vector3f{1.f, 1.f, 1.f} - F) * diffuse_color * M_1_PI;
@@ -123,7 +121,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
                                    * (1.f / (4 * std::abs(dot(shading_normal, r.direction)) * std::abs(dot(shading_normal, dir))));
     vector3f f_specular = F * ggx_microfacet_distribution(alpha, shading_normal, half) * specular_visibility;
 
-    intersection.color += obj.material.color * coeff * (f_diffuse + f_specular) * cos * obj.material.alpha;
+    intersection.color += reflect_inter.color * coeff * (f_diffuse + f_specular) * dot(dir, shading_normal) * obj.material.alpha;
 
     return intersection;
 
