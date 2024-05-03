@@ -130,6 +130,7 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
 
         tinygltf::Mesh &mesh = model.meshes[node.mesh];
         matrix4d transform = node.matrix;
+        matrix4d normal_transform = inverse(transpose(transform));
 
         for (auto &p : mesh.primitives) {
             Material material;
@@ -262,7 +263,7 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
                     for (int j = 0; j < 3; ++j) {
                         primitive.position[v][j] = position_view[index[v] * 3 + j];
                     }
-                    primitive.position[v] = multiply(matrix4d(node.matrix), primitive.position[v]);
+                    primitive.position[v] = multiply(transform, primitive.position[v]);
                 }
                 primitive.position[1] = primitive.position[1] - primitive.position[0];
                 primitive.position[2] = primitive.position[2] - primitive.position[0];
@@ -275,7 +276,7 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
                     } else {
                         primitive.normal[v] = {0, 0, 1};
                     }
-                    primitive.normal[v] = ::normal(multiplyVector(matrix4d(node.matrix), primitive.normal[v]));
+                    primitive.normal[v] = ::normal(multiplyVector(normal_transform, primitive.normal[v]));
                 }
 
                 if (texcoord_view) {

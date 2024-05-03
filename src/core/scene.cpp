@@ -91,16 +91,20 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
     Primitive &obj = *objects[intersection.object_id].get();
 
     vector3f pos = r.origin + r.direction * intersection.distance;
-//    vector3f shading_normal = obj.get_shading_normal(intersection.local_coords);
-//    if (intersection.inside)
-//        shading_normal = -shading_normal;
-    vector3f shading_normal = intersection.normal;
+    vector3f shading_normal = obj.get_shading_normal(intersection.local_coords);
+    if (intersection.inside)
+        shading_normal = -shading_normal;
+//    vector3f shading_normal = intersection.normal;
 
     vector3f dir{};
     float pdf = 0.f;
     dir = scene_distribution_->sample(pos, shading_normal, -r.direction, obj.material.roughness2, rng);
-    if (dot(dir, intersection.normal) <= 0.f)
-        return intersection;
+    if (dot(dir, shading_normal) <= 0.f) {
+        if (dot(dir, intersection.normal) <= 0.f) {
+            return intersection;
+        }
+        shading_normal = intersection.normal;
+    }
     pdf = scene_distribution_->pdf(pos, shading_normal, -r.direction, obj.material.roughness2, dir);
     if (pdf <= 0.f || isnanf(pdf))
         return intersection;
