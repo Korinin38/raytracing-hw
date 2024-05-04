@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-size_t buildHelperSAH(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb, size_t first, size_t count, size_t &best_dim) {
+size_t buildHelperSAH(std::vector<Primitive> &primitives, AABB node_aabb, size_t first, size_t count, size_t &best_dim) {
     const int BIN_SIZE = 1;
 
 #define ONLY_WIDEST_AXIS 1
@@ -17,7 +17,7 @@ size_t buildHelperSAH(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb,
     std::vector<float> sah_right_scan(bins_count);
 
     float best_sah = node_aabb.surface_area() * (float)count;
-    float best_split = (primitives.begin() + first)->get()->aabb().center()[2] - 1e-7;
+    float best_split = (primitives.begin() + first)->aabb().center()[2] - 1e-7;
     auto result = primitives.begin() + first;
     best_dim = 2;
 
@@ -37,15 +37,15 @@ size_t buildHelperSAH(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb,
 #else
     auto vb = primitives.begin() + first;
     auto ve = primitives.begin() + first + count;
-    std::vector<primitive_sh_ptr> nodes_sorted[3] = {std::vector<primitive_sh_ptr>(vb, ve),
-                                                     std::vector<primitive_sh_ptr>(vb, ve),
-                                                     std::vector<primitive_sh_ptr>(vb, ve)};
+    std::vector<Primitive> nodes_sorted[3] = {std::vector<Primitive>(vb, ve),
+                                                     std::vector<Primitive>(vb, ve),
+                                                     std::vector<Primitive>(vb, ve)};
     for (int dim = 0; dim < 3; ++dim) {
         auto begin = nodes_sorted[dim].begin();
         auto end = nodes_sorted[dim].end();
 #endif
-        auto predicate = [dim](primitive_sh_ptr &a, primitive_sh_ptr &b) {
-            return (a->aabb().center()[dim] < b->aabb().center()[dim]);
+        auto predicate = [dim](Primitive &a, Primitive &b) {
+            return (a.aabb().center()[dim] < b.aabb().center()[dim]);
         };
         std::sort(begin, end, predicate);
 
@@ -54,7 +54,7 @@ size_t buildHelperSAH(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb,
             for (int i = 0; i < BIN_SIZE; ++i) {
                 if (bin * BIN_SIZE + i >= count)
                     break;
-                sah_bins[bin].grow(primitives[first + bin * BIN_SIZE + i]->aabb());
+                sah_bins[bin].grow(primitives[first + bin * BIN_SIZE + i].aabb());
             }
         }
 
@@ -84,7 +84,7 @@ size_t buildHelperSAH(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb,
                 result = primitives.begin() + first + left_obj_count;
                 best_dim = dim;
                 if (left_obj_count < count)
-                    best_split = ((result - 1)->get()->aabb().center()[dim] + result->get()->aabb().center()[dim]) * 0.5f;
+                    best_split = ((result - 1)->aabb().center()[dim] + result->aabb().center()[dim]) * 0.5f;
             }
         }
     }
@@ -94,10 +94,10 @@ size_t buildHelperSAH(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb,
     {
 //            AABB klvcbj = nodes_sorted[best_dim][(result - (primitives.begin() + first))]->aabb();
 //            float part = klvcbj.max[best_dim] + klvcbj.min[best_dim];
-//            auto predicate = [best_dim, part](primitive_sh_ptr &a) {
+//            auto predicate = [best_dim, part](Primitive &a) {
 //                return (a->aabb().max[best_dim] + a->aabb().min[best_dim]) < part;
 //            };
-//            auto predicate = [best_dim](primitive_sh_ptr &a, primitive_sh_ptr &b) {
+//            auto predicate = [best_dim](Primitive &a, Primitive &b) {
 //                return ((a->aabb().max[best_dim] + a->aabb().min[best_dim]) < (b->aabb().max[best_dim] + b->aabb().min[best_dim]));
 //            };
 //            result = std::partition(primitives.begin() + first, primitives.begin() + first + count, predicate);
@@ -106,12 +106,12 @@ size_t buildHelperSAH(std::vector<primitive_sh_ptr> &primitives, AABB node_aabb,
     }
 #endif
 #undef ONLY_WIDEST_AXIS
-    auto pred = [best_dim, best_split](primitive_sh_ptr &a){ return a->aabb().center()[best_dim] < best_split; };
+    auto pred = [best_dim, best_split](Primitive &a){ return a.aabb().center()[best_dim] < best_split; };
     result = std::partition(begin, end, pred);
     return (result - (primitives.begin() + first));
 }
 
-size_t BVH::buildNode(std::vector<StackBuildNode> &nodes_q, std::vector<primitive_sh_ptr> &primitives) { // NOLINT(*-no-recursion)
+size_t BVH::buildNode(std::vector<StackBuildNode> &nodes_q, std::vector<Primitive> &primitives) { // NOLINT(*-no-recursion)
     StackBuildNode stack = nodes_q.back();
     nodes_q.pop_back();
 
@@ -129,7 +129,7 @@ size_t BVH::buildNode(std::vector<StackBuildNode> &nodes_q, std::vector<primitiv
     if ((ptrdiff_t)first + (ptrdiff_t)count > primitives.size())
         throw std::runtime_error("Node range beyond array borders");
     for (auto it = begin; it != end; ++it) {
-        nodes[place].aabb.grow(it->get()->aabb());
+        nodes[place].aabb.grow(it->aabb());
     }
 
     if (count <= 4) {
@@ -163,7 +163,7 @@ size_t BVH::buildNode(std::vector<StackBuildNode> &nodes_q, std::vector<primitiv
     return place;
 }
 
-void BVH::buildBVH(std::vector<primitive_sh_ptr> &primitives) {
+void BVH::buildBVH(std::vector<Primitive> &primitives) {
     std::vector<StackBuildNode> nodes_q;
     nodes_q.emplace_back(nodes.size(), 0, primitives.size());
     nodes.emplace_back();
@@ -174,7 +174,7 @@ void BVH::buildBVH(std::vector<primitive_sh_ptr> &primitives) {
     }
 }
 
-Intersection BVH::intersectHelper(const std::vector<primitive_sh_ptr> &primitives, Ray r, size_t node_id) const {
+Intersection BVH::intersectHelper(const std::vector<Primitive> &primitives, Ray r, size_t node_id) const {
     const Node & node = nodes[node_id];
 
     Intersection intersection;
@@ -226,7 +226,7 @@ Intersection BVH::intersectHelper(const std::vector<primitive_sh_ptr> &primitive
         return intersection;
 
     for (size_t i = node.first_primitive_id; i < node.first_primitive_id + node.primitive_count; ++i) {
-        Intersection a = primitives[i]->intersect(r);
+        Intersection a = primitives[i].intersect(r);
         if (a && a.distance < intersection.distance) {
             intersection = a;
             intersection.object_id = i;
@@ -236,13 +236,13 @@ Intersection BVH::intersectHelper(const std::vector<primitive_sh_ptr> &primitive
     return intersection;
 }
 
-Intersection BVH::intersect(const std::vector<primitive_sh_ptr> &primitives, Ray r) const {
+Intersection BVH::intersect(const std::vector<Primitive> &primitives, Ray r) const {
     if (!nodes[0].aabb.intersect(r))
         return {};
     return intersectHelper(primitives, r, 0);
 }
 
-void BVH::intersectAllHelper(const std::vector<primitive_sh_ptr> &primitives, std::vector<Intersection> &result, Ray r, size_t node_id) const {
+void BVH::intersectAllHelper(const std::vector<Primitive> &primitives, std::vector<Intersection> &result, Ray r, size_t node_id) const {
     const Node & node = nodes[node_id];
 
     Intersection intersection;
@@ -264,7 +264,7 @@ void BVH::intersectAllHelper(const std::vector<primitive_sh_ptr> &primitives, st
         return;
 
     for (size_t i = node.first_primitive_id; i < node.first_primitive_id + node.primitive_count; ++i) {
-        Intersection a = primitives[i]->intersect(r);
+        Intersection a = primitives[i].intersect(r);
         if (a) {
             a.object_id = i;
             result.push_back(a);
@@ -272,7 +272,7 @@ void BVH::intersectAllHelper(const std::vector<primitive_sh_ptr> &primitives, st
     }
 }
 
-std::vector<Intersection> BVH::intersectAll(const std::vector<primitive_sh_ptr> &primitives, Ray r) const {
+std::vector<Intersection> BVH::intersectAll(const std::vector<Primitive> &primitives, Ray r) const {
     std::vector<Intersection> result;
     intersectAllHelper(primitives, result, r, 0);
     return result;

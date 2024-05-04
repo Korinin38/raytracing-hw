@@ -153,9 +153,9 @@ float visible_normal::pdf(vector3f normal, vector3f eye_direction, float alpha, 
     return 1.f / (4.f * invD * invG1 * dot(V, Z));
 }
 
-ManyLightsDistribution::ManyLightsDistribution(const std::vector<primitive_sh_ptr>& primitives) {
+ManyLightsDistribution::ManyLightsDistribution(const std::vector<Primitive>& primitives) {
     for (const auto& p : primitives) {
-        if (!p->emissive())
+        if (!p.emissive())
             continue;
         objects.push_back(p);
     }
@@ -163,7 +163,7 @@ ManyLightsDistribution::ManyLightsDistribution(const std::vector<primitive_sh_pt
         return;
     bvh.buildBVH(objects);
     for (auto &o: objects) {
-        distributions.emplace_back(*o);
+        distributions.emplace_back(o);
     }
 }
 
@@ -211,9 +211,6 @@ SceneDistribution::pdf(const vector3f &point, const vector3f &normal, const vect
                 + light.pdf(point, direction)
                 + visible_normal::pdf(normal, eye_direction, roughness2, direction)
             ) / 3;
-//    return (cosine::pdf(normal, direction) + light.pdf(point, direction)) / 2;
-//    return cosine::pdf(normal, direction);
-//    return vndf::pdf(normal, eye_direction, {roughness2, roughness2}, direction);
 }
 
 }

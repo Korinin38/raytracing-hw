@@ -44,7 +44,7 @@ Intersection Primitive::intersect(Ray ray) const {
     Intersection intersection;
 
     intersection.successful = true;
-    intersection.color = material.color;
+    intersection.color = mesh->material.base_color;
     intersection.local_coords = {u, v};
     intersection.normal = get_geometric_normal();
     intersection.distance = t;
@@ -57,7 +57,7 @@ Intersection Primitive::intersect(Ray ray) const {
 }
 
 bool Primitive::emissive() const {
-    return (!material.emission.is_zero());
+    return (!mesh->material.emission.is_zero());
 }
 
 AABB Primitive::aabb() const {
@@ -89,8 +89,25 @@ vector3f Primitive::get_shading_normal(vector2f local_coords) const {
     return ::normal((1 - local_coords.x - local_coords.y) * normal[0] + local_coords.x * normal[1] + local_coords.y * normal[2]);
 }
 
+vector2f Primitive::get_texcoord(vector2f local_coords) const {
+    return (1 - local_coords.x - local_coords.y) * texcoord[0] + local_coords.x * texcoord[1] + local_coords.y * texcoord[2];
+}
+
+vector3f Primitive::get_color(vector2f local_coords) const {
+    if (mesh->material.base_color_i == Material::NO_TEXTURE)
+        return mesh->material.base_color;
+    vector2f tc = get_texcoord(local_coords);
+    vector4f albedo = textures[mesh->material.base_color_i].sRGB_get(tc);
+//    vector4f albedo = {tc.x, tc.y, 0};
+
+    vector3f color = {albedo.x, albedo.y, albedo.z};
+    vector3f &factor = mesh->material.base_color;
+
+    return color * factor;
+}
+
 bool Primitive::transparent() const {
-    return (material.alpha < 1.f);
+    return (mesh->material.alpha < 1.f);
 }
 
 std::optional<float> AABB::intersect(Ray r) const {
@@ -155,4 +172,12 @@ std::optional<float> AABB::intersect(Ray r) const {
     }
 
     return std::make_optional(length(coord - r.origin));
+}
+
+void set_mesh_texture_primitive_correspondence(std::vector<Mesh> &meshes, std::vector<Primitive> &primitives,
+                                               std::vector<Texture> &textures) {
+    for (auto &p : primitives) {
+        p.mesh = &(meshes[p.mesh_id]);
+        p.textures = textures.data();
+    }
 }

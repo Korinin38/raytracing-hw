@@ -13,7 +13,8 @@ typedef std::function<bool(int, timer&)> ProgressFunc;
 
 struct Scene {
 public:
-    Scene(camera_uniq_ptr &camera_, std::vector<primitive_sh_ptr> objects, int ray_depth, int samples, float max_distance);
+    Scene(camera_uniq_ptr &camera_, std::vector<Mesh> meshes_, std::vector<Primitive> objects_,
+          std::vector<Texture> textures_, int ray_depth_, int samples_, float max_distance_);
 
     void render(ProgressFunc = nullptr) const;
     void draw_into(const std::string &filename) const;
@@ -22,7 +23,9 @@ public:
     vector3f bg_color;
     int ray_depth;
     int samples;
-    std::vector<primitive_sh_ptr> objects;
+    std::vector<Mesh> meshes;
+    std::vector<Primitive> objects;
+    std::vector<Texture> textures;
     BVH bvh;
 
     Intersection intersect(Ray r, Engine &rng, bool no_light = false) const;

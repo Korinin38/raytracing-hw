@@ -28,6 +28,9 @@ struct vector2f {
 
     float &operator[](int i) { return *(&x + i); }
     const float &operator[](int i) const { return *(&x + i); }
+    vector2f &operator+=(vector2f b);
+    vector2f &operator*=(vector2f b);
+    vector2f &operator*=(float b);
 };
 
 struct vector3f {
@@ -246,6 +249,46 @@ inline vector3f operator-(vector3f v) {
 // conjugate
 inline vector4f operator*(vector4f q) {
     return {-q.x, -q.y, -q.z, q.w};
+}
+
+inline vector2f &vector2f::operator+=(vector2f b) {
+    for (int i = 0; i < 2; ++i)
+        (*this)[i] += b[i];
+    return *this;
+}
+
+inline vector2f operator+(vector2f a, vector2f b) {
+    vector2f r = a;
+    r += b;
+    return r;
+}
+
+inline vector2f &vector2f::operator*=(vector2f b) {
+    for (int i = 0; i < 2; ++i)
+        (*this)[i] *= b[i];
+    return *this;
+}
+
+inline vector2f &vector2f::operator*=(float b) {
+    for (int i = 0; i < 2; ++i)
+        (*this)[i] *= b;
+    return *this;
+}
+
+inline vector2f operator*(vector2f v, float t) {
+    vector2f r = v;
+    r *= t;
+    return r;
+}
+
+inline vector2f operator*(float t, vector2f v) {
+    return v * t;
+}
+
+inline vector2f operator*(vector2f a, vector2f b) {
+    vector2f r = a;
+    r *= b;
+    return r;
 }
 
 inline vector3f &vector3f::operator+=(vector3f b) {

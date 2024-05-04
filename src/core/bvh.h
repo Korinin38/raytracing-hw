@@ -19,18 +19,18 @@ struct Node {
 class BVH {
 public:
     std::vector<Node> nodes;
-    void buildBVH(std::vector<primitive_sh_ptr> &primitives);
+    void buildBVH(std::vector<Primitive> &primitives);
     [[nodiscard]]
-    Intersection intersect(const std::vector<primitive_sh_ptr> &primitives, Ray r) const;
-    std::vector<Intersection> intersectAll(const std::vector<primitive_sh_ptr> &primitives, Ray r) const;
+    Intersection intersect(const std::vector<Primitive> &primitives, Ray r) const;
+    std::vector<Intersection> intersectAll(const std::vector<Primitive> &primitives, Ray r) const;
 private:
-    Intersection intersectHelper (const std::vector<primitive_sh_ptr> &primitives, Ray r, size_t node_id = 0) const;
-    void intersectAllHelper (const std::vector<primitive_sh_ptr> &primitives, std::vector<Intersection> &result, Ray r, size_t node_id = 0) const;
+    Intersection intersectHelper (const std::vector<Primitive> &primitives, Ray r, size_t node_id = 0) const;
+    void intersectAllHelper (const std::vector<Primitive> &primitives, std::vector<Intersection> &result, Ray r, size_t node_id = 0) const;
     struct StackBuildNode {
         StackBuildNode(size_t p, size_t f, size_t c) : place(p), first(f), count(c) {}
         size_t place;
         size_t first;
         size_t count;
     };
-    size_t buildNode(std::vector<StackBuildNode> &nodes, std::vector<primitive_sh_ptr> &primitives);
+    size_t buildNode(std::vector<StackBuildNode> &nodes_q, std::vector<Primitive> &primitives);
 };

@@ -3,12 +3,14 @@
 #include <utils/vector.h>
 
 #include <vector>
+#include <stdexcept>
 
 template <typename T>
 struct matrix4 {
     T data[16] = {};
 
     matrix4() = default;
+
     matrix4(const std::vector<T> &a) { // NOLINT(*-explicit-constructor)
         std::copy(a.begin(), a.end(), data);
     }

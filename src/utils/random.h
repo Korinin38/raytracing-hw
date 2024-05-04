@@ -59,21 +59,21 @@ namespace visible_normal {
 
     class ManyLightsDistribution {
     public:
-        explicit ManyLightsDistribution(const std::vector<primitive_sh_ptr>& primitives);
+        explicit ManyLightsDistribution(const std::vector<Primitive>& primitives);
         vector3f sample(vector3f point, Engine &rng) const;
         float pdf(vector3f point, vector3f direction) const;
     //    void add_distr(const random_distribution_sh_ptr& dist);
     //    [[nodiscard]] size_t size() const;
         size_t size() const;
     private:
-        std::vector<primitive_sh_ptr> objects;
+        std::vector<Primitive> objects;
         std::vector<LightDistribution> distributions;
         BVH bvh;
     };
 
     class SceneDistribution {
     public:
-        explicit SceneDistribution(const std::vector<primitive_sh_ptr>& light_objects) : light(light_objects) {};
+        explicit SceneDistribution(const std::vector<Primitive>& light_objects) : light(light_objects) {};
         vector3f sample(const vector3f &point, const vector3f &normal, const vector3f &eye_direction, float roughness2, Engine &rng) const;
         float pdf(const vector3f &point, const vector3f &normal, const vector3f &eye_direction, float roughness2, const vector3f &direction) const;
     private:

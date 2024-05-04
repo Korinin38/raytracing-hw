@@ -1,17 +1,19 @@
 #pragma once
 
 #include <utils/vector.h>
+#include <utils/matrix.h>
 
 #include <fstream>
 #include <optional>
 #include <memory>
 #include <variant>
+#include <vector>
 
 struct AABB;
+struct Material;
 struct Primitive;
+struct Texture;
 struct Ray;
-
-typedef std::shared_ptr<Primitive> primitive_sh_ptr;
 
 typedef struct AABB {
     vector3f min = get_max_vec3f();
@@ -74,15 +76,25 @@ typedef struct Intersection {
 struct Material {
     float ior = 1.f;
     float alpha = 1.f;
-    vector3f color = {1.f, 1.f, 1.f};
+    vector3f base_color = {1.f, 1.f, 1.f};
     vector3f emission = {0, 0, 0};
     float metallic = 1.f;
     float roughness2 = 1.f; // alpha
+
+    static const int NO_TEXTURE = -1;
+    int base_color_i = NO_TEXTURE;
+    int normal_i = NO_TEXTURE;
+    int metallic_roughness_i = NO_TEXTURE;
+    int emission_i = NO_TEXTURE;
+};
+
+struct Mesh {
+    Material material;
+    matrix4d normal_transform;
 };
 
 struct Primitive {
 public:
-    Material material;
     // 0: origin point
     // 1: U
     // 2: V
@@ -98,6 +110,11 @@ public:
     vector3f get_geometric_normal() const;
     vector3f get_shading_normal(vector2f local_coords) const;
 
+    vector2f get_texcoord(vector2f local_coords) const;
+
+    vector3f get_color(vector2f local_coords) const;
+//    vector2f get_metallic_roughness(vector2f local_coords) const;
+
     AABB aabb() const;
 
     struct CalculationCache {
@@ -105,7 +122,65 @@ public:
         float triangle_area = 0.f;
         AABB aabb;
     };
+
     mutable CalculationCache cache;
+
+    // these are stored outside for shared usage
+    Texture *textures;
+    Mesh *mesh;
+    int mesh_id;
+};
+
+struct Texture {
+    std::vector<uint8_t> data;
+    int width;
+    int height;
+    int channels;
+    int bytes_per_channel;
+
+    unsigned char* get(int x, int y) {
+        x %= width;
+        y %= height;
+        return data.data() + (y * width + x) * channels * bytes_per_channel;
+    }
+
+    static float interpolate_bilinear(float a00, float a01, float a10, float a11, float dx, float dy) {
+        return a00 * (1 - dx) * (1 - dy) + a01 * (1 - dx) * dy
+             + a10 * dx * (1 - dy) + a11 * dy;
+    };
+    // p in [0,1]x[0,1] (or, otherwise, transformed by modulo 1)
+    // dst is valid buffer that contains at least (channels * bytes_per_channel) bytes of memory
+    vector4f sRGB_get(vector2f p) {
+        // repeat
+        p.x -= std::floor(p.x);
+        p.y -= std::floor(p.y);
+
+        // expand to full canvas
+        p.x *= (float)width;
+        p.y *= (float)height;
+
+        vector4f res;
+
+        vector2i point = {(int)std::floor(p.x), (int)std::floor(p.y)};
+        vector2f delta = {p.x - std::floor(p.x), p.y - std::floor(p.y)};
+
+        uint8_t *ptrs[4];
+        for (int dy = 0; dy < 2; ++dy)
+        for (int dx = 0; dx < 2; ++dx) {
+            ptrs[dx * 2 + dy] = get(point.x + dx, point.y + dy);
+        }
+
+        for (int i = 0; i < channels; ++i) {
+            float vals[4];
+            for (int dy = 0; dy < 2; ++dy)
+            for (int dx = 0; dx < 2; ++dx) {
+                vals[dx * 2 + dy] = std::pow(ch8bit_to_normal(*(ptrs[dx * 2 + dy] + i)), 2.2f);
+            }
+            res[i] = interpolate_bilinear(vals[0], vals[1], vals[2], vals[3], delta.x, delta.y);
+        }
+
+        return res;
+    }
 };
 
 struct Ray {
@@ -119,3 +194,5 @@ public:
     // amount of jumps possible
     int power = 1;
 };
+
+void set_mesh_texture_primitive_correspondence(std::vector<Mesh> &meshes, std::vector<Primitive> &primitives, std::vector<Texture> &textures);

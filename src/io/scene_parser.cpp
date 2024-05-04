@@ -16,7 +16,9 @@ struct ScenePartial {
     camera_uniq_ptr camera = nullptr;
     int ray_depth = 6;
     int samples = 256;
-    std::vector<primitive_sh_ptr> objects;
+    std::vector<Mesh> meshes;
+    std::vector<Texture> textures;
+    std::vector<Primitive> objects;
     float max_distance = 1e9;
 };
 
@@ -97,6 +99,7 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
     if (node_with_camera == -1)
         throw std::runtime_error("[gltf check] No camera found");
 
+    // camera
     {
         vector2i cam_canvas{width, height};
         vector3f cam_position = multiply(matrix4d(model.nodes[node_with_camera].matrix), vector3f{0.f, 0.f, 0.f});
@@ -124,48 +127,71 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
     }
     scene.samples = samples;
 
+    // textures
+    for (auto &gltf_image : model.images) {
+        scene.textures.emplace_back();
+        Texture &t = scene.textures.back();
+
+        t.data = std::move(gltf_image.image);
+        t.width = gltf_image.width;
+        t.height = gltf_image.height;
+        t.channels = gltf_image.component;
+        if (gltf_image.bits != 8)
+            throw std::runtime_error("Texture format not supported: only 8 bit channels are supported");
+        t.bytes_per_channel = gltf_image.bits / 8;
+    }
+
+    // meshes (gltf_mesh != mesh; gltf_primitive == mesh. confusing, but simplifies material handling)
     for (auto &node : model.nodes) {
         if (node.mesh == -1)
             continue;
 
-        tinygltf::Mesh &mesh = model.meshes[node.mesh];
-        matrix4d transform = node.matrix;
-        matrix4d normal_transform = inverse(transpose(transform));
 
-        for (auto &p : mesh.primitives) {
-            Material material;
+        tinygltf::Mesh &gltf_mesh = model.meshes[node.mesh];
 
-            if (p.material != -1) {
-                tinygltf::Material mesh_material = model.materials[p.material];
-                for (int j = 0; j < 3; ++j)
-                    material.color[j] = (float)mesh_material.pbrMetallicRoughness.baseColorFactor[j];
-                if (mesh_material.pbrMetallicRoughness.baseColorFactor[3] < 1.) {
-                    material.alpha = (float)mesh_material.pbrMetallicRoughness.baseColorFactor[3];
-//                    material.type = Material::Type::Dielectric;
-                    if (mesh_material.extensions.count("KHR_materials_ior")) {
-                        material.ior = (float)mesh_material.extensions["KHR_materials_ior"].Get("ior").GetNumberAsDouble();
-                    } else {
-                        material.ior = 1.5;
+        for (auto &p : gltf_mesh.primitives) {
+            scene.meshes.emplace_back();
+            Mesh &mesh = scene.meshes.back();
+
+            matrix4d transform = node.matrix;
+            mesh.normal_transform = inverse(transpose(transform));
+            matrix4d normal_transform = mesh.normal_transform;
+
+            // material
+            {
+                Material &material = scene.meshes[node.mesh].material;
+
+                if (p.material != -1) {
+                    tinygltf::Material gltf_material = model.materials[p.material];
+                    for (int j = 0; j < 3; ++j)
+                        material.base_color[j] = (float) gltf_material.pbrMetallicRoughness.baseColorFactor[j];
+                    if (gltf_material.pbrMetallicRoughness.baseColorFactor[3] < 1.) {
+                        material.alpha = (float) gltf_material.pbrMetallicRoughness.baseColorFactor[3];
+                        if (gltf_material.extensions.count("KHR_materials_ior")) {
+                            material.ior = (float) gltf_material.extensions["KHR_materials_ior"].Get(
+                                    "ior").GetNumberAsDouble();
+                        } else {
+                            material.ior = 1.5;
+                        }
                     }
-                }
-//                if (mesh_material.pbrMetallicRoughness.metallicFactor > 0.) {
-//                    material.type = Material::Type::Metallic;
-//                }
-                material.metallic = (float)mesh_material.pbrMetallicRoughness.metallicFactor;
-                material.roughness2 = (float)mesh_material.pbrMetallicRoughness.roughnessFactor;
-                // make it squared
-                material.roughness2 *= material.roughness2;
-                for (int j = 0; j < 3; ++j)
-                    material.emission[j] = (float)mesh_material.emissiveFactor[j];
+                    material.metallic = (float) gltf_material.pbrMetallicRoughness.metallicFactor;
+                    material.roughness2 = (float) gltf_material.pbrMetallicRoughness.roughnessFactor;
+                    // make it squared
+                    material.roughness2 *= material.roughness2;
+                    for (int j = 0; j < 3; ++j)
+                        material.emission[j] = (float) gltf_material.emissiveFactor[j];
 
-                if (mesh_material.extensions.count("KHR_materials_emissive_strength")) {
-                    float emission_strength = (float) mesh_material.extensions["KHR_materials_emissive_strength"].Get(
-                            "emissiveStrength").GetNumberAsDouble();
-                    material.emission *= emission_strength;
+                    if (gltf_material.extensions.count("KHR_materials_emissive_strength")) {
+                        float emission_strength = (float) gltf_material.extensions["KHR_materials_emissive_strength"].Get(
+                                "emissiveStrength").GetNumberAsDouble();
+                        material.emission *= emission_strength;
+                    }
+
+                    material.base_color_i = gltf_material.pbrMetallicRoughness.baseColorTexture.index;
+                    material.normal_i = gltf_material.normalTexture.index;
+                    material.metallic_roughness_i = gltf_material.pbrMetallicRoughness.metallicRoughnessTexture.index;
+                    material.emission_i = gltf_material.emissiveTexture.index;
                 }
-            } else {
-//                material.type = Material::Type::Diffuse;
-                material.color = {1.f, 1.f, 1.f};
             }
 
             unsigned char *indices_view;
@@ -235,9 +261,10 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
             }
 
             for (size_t i = 0; i < indices_count / 3; ++i) {
-                scene.objects.emplace_back(new Primitive());
-                Primitive &primitive = *scene.objects.back();
-                primitive.material = material;
+                scene.objects.emplace_back();
+                Primitive &primitive = scene.objects.back();
+                primitive.mesh_id = (int)scene.meshes.size() - 1;
+                primitive.mesh = &scene.meshes.back();
 
                 size_t index[3];
                 switch (indices_component_type) {
@@ -280,9 +307,9 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
                 }
 
                 if (texcoord_view) {
-                    for (int v = 0; v < 2; ++v) {
-                        for (int j = 0; j < 3; ++j) {
-                            primitive.texcoord[v][j] = texcoord_view[index[v] * 3 + j];
+                    for (int v = 0; v < 3; ++v) {
+                        for (int j = 0; j < 2; ++j) {
+                            primitive.texcoord[v][j] = texcoord_view[index[v] * 2 + j];
                         }
                     }
                 }
@@ -290,5 +317,6 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
         }
     }
 
-    return {scene.camera, scene.objects, scene.ray_depth, scene.samples, scene.max_distance};
+    return {scene.camera, scene.meshes, scene.objects, scene.textures, scene.ray_depth, scene.samples,
+            scene.max_distance};
 }
