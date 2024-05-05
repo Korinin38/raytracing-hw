@@ -1,6 +1,7 @@
 #include "scene.h"
 #include <utils/base.h>
 #include <utils/timer.h>
+#include <tinygltf/stb_image.h>
 
 #include <iostream>
 #include <memory>
@@ -79,12 +80,24 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
 
     if (intersect_bvh && intersect_bvh.distance < intersection.distance) {
         intersection = intersect_bvh;
-        intersection.color = objects[intersection.object_id].mesh->material.emission;
+//        intersection.color = objects[intersection.object_id].mesh->material.emission;
+        intersection.color = objects[intersection.object_id].get_emission(intersection.local_coords);
     }
 
     // simple check with no light or color
-    if (no_color || intersection.object_id >= objects.size())
+    if (no_color || intersection.object_id >= objects.size()) {
+        if (hdr.width != 0) {
+            vector2f hdr_texcoord;
+            hdr_texcoord.x = 0.5f + 0.5f * std::atan2(r.direction.z, r.direction.x) / M_PIf32;
+            hdr_texcoord.y = 0.5f - std::asin(r.direction.y) / M_PIf32;
+            vector4f hdr_color = hdr.sRGBA_sample(hdr_texcoord);
+            for (int i = 0; i < 3; ++i) {
+                intersection.color[i] = hdr_color[i];
+            }
+        }
+
         return intersection;
+    }
 
     const Primitive &obj = objects[intersection.object_id];
 
@@ -93,16 +106,19 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
     if (intersection.inside)
         shading_normal = -shading_normal;
 
+    float metallic, roughness2;
+    std::tie(roughness2, metallic) = obj.get_metallic_roughness(intersection.local_coords);
+
     vector3f dir{};
     float pdf = 0.f;
-    dir = scene_distribution_->sample(pos, shading_normal, -r.direction, obj.mesh->material.roughness2, rng);
+    dir = scene_distribution_->sample(pos, shading_normal, -r.direction, roughness2, rng);
     if (dot(dir, shading_normal) <= 0.f) {
         if (dot(dir, intersection.normal) <= 0.f) {
             return intersection;
         }
         shading_normal = intersection.normal;
     }
-    pdf = scene_distribution_->pdf(pos, shading_normal, -r.direction, obj.mesh->material.roughness2, dir);
+    pdf = scene_distribution_->pdf(pos, shading_normal, -r.direction, roughness2, dir);
     if (pdf <= 0.f || isnanf(pdf))
         return intersection;
     Ray reflect_ray(pos + dir * step, dir);
@@ -114,9 +130,9 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
 
     const float f0_base = 0.04f;
 
-    float specular_visibility = smith_joint_masking_shadowing_function(obj.mesh->material.roughness2, shading_normal, -r.direction, dir)
+    float specular_visibility = smith_joint_masking_shadowing_function(roughness2, shading_normal, -r.direction, dir)
                                    * (1.f / (4 * std::abs(dot(shading_normal, r.direction)) * std::abs(dot(shading_normal, dir))));
-    float specular_brdf = ggx_microfacet_distribution(obj.mesh->material.roughness2, shading_normal, half) * specular_visibility;
+    float specular_brdf = ggx_microfacet_distribution(roughness2, shading_normal, half) * specular_visibility;
 
     float VdotH = std::abs(dot(-r.direction, half));
     vector3f base_color = obj.get_color(intersection.local_coords);
@@ -126,7 +142,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
     float dielectric_specular_coeff = conductor_fresnel(f0_base, VdotH);
     vector3f dielectric_brdf = diffuse_brdf * (1 - dielectric_specular_coeff) + vector3f{1.f, 1.f, 1.f} * specular_brdf * dielectric_specular_coeff;
 
-    vector3f material = dielectric_brdf * (1 - obj.mesh->material.metallic) + metal_brdf * obj.mesh->material.metallic;
+    vector3f material = dielectric_brdf * (1 - metallic) + metal_brdf * metallic;
 
     intersection.color += reflect_inter.color * coeff * (material) * dot(dir, shading_normal) * obj.mesh->material.alpha;
 
@@ -175,11 +191,35 @@ Scene::Scene(camera_uniq_ptr &camera_, std::vector<Mesh> meshes_, std::vector<Pr
       meshes(std::move(meshes_)),
       objects(std::move(objects_)),
       textures(std::move(textures_)),
-      bg_color({.5f, .5f, .5f}),
+      bg_color({.0f, .0f, .0f}),
+//      bg_color({.8f, .8f, .8f}),
       ray_depth(ray_depth_),
       samples(samples_),
       max_distance(max_distance_)
 {
+
+#if 0
+    unsigned char *a = stbi_load("data/harvest_2k.hdr", &hdr.width, &hdr.height, &hdr.channels, 3);
+    if (hdr.channels != 3)
+        std::cout << "Warning: " << hdr.channels << " channels" << std::endl;
+    hdr.channels = 3;
+    hdr.bytes_per_channel = 1;
+    hdr.data.reserve(hdr.width * hdr.height * hdr.channels);
+    for (int y = 0; y < hdr.height; ++y) {
+        for (int x = 0; x < hdr.width; ++x) {
+            for (int c = 0; c < hdr.channels; ++c) {
+                int idx = hdr.width * hdr.channels * y + x * hdr.channels + c;
+                hdr.data[idx] = a[idx];
+            }
+        }
+    }
+    delete a;
+
+#else
+    hdr.width = 0;
+    hdr.height = 0;
+#endif
+
     set_mesh_texture_primitive_correspondence(meshes, objects, textures);
     bvh.buildBVH(objects);
     std::cout << bvh.nodes.size() << " nodes in BVH." << std::endl;

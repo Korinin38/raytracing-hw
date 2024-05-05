@@ -28,6 +28,8 @@ public:
     std::vector<Texture> textures;
     BVH bvh;
 
+    Texture hdr;
+
     Intersection intersect(Ray r, Engine &rng, bool no_light = false) const;
 private:
     const float max_distance;

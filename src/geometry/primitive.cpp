@@ -97,13 +97,38 @@ vector3f Primitive::get_color(vector2f local_coords) const {
     if (mesh->material.base_color_i == Material::NO_TEXTURE)
         return mesh->material.base_color;
     vector2f tc = get_texcoord(local_coords);
-    vector4f albedo = textures[mesh->material.base_color_i].sRGB_get(tc);
+    vector4f albedo = textures[mesh->material.base_color_i].sRGBA_sample(tc);
 //    vector4f albedo = {tc.x, tc.y, 0};
 
     vector3f color = {albedo.x, albedo.y, albedo.z};
     vector3f &factor = mesh->material.base_color;
 
     return color * factor;
+}
+
+vector3f Primitive::get_emission(vector2f local_coords) const {
+    if (mesh->material.emission_i == Material::NO_TEXTURE)
+        return mesh->material.emission;
+    vector2f tc = get_texcoord(local_coords);
+    vector4f emission_texture = textures[mesh->material.emission_i].sRGBA_sample(tc);
+
+    vector3f emission = {emission_texture.x, emission_texture.y, emission_texture.z};
+    vector3f &factor = mesh->material.emission;
+
+    return emission * factor;
+}
+
+std::tuple<float, float> Primitive::get_metallic_roughness(vector2f local_coords) const {
+    if (mesh->material.metallic_roughness_i == Material::NO_TEXTURE)
+        return {mesh->material.roughness2, mesh->material.metallic};
+    vector2f tc = get_texcoord(local_coords);
+    vector4f mr_texture = textures[mesh->material.metallic_roughness_i].RGBA_sample(tc);
+
+//    float r2 = mr_texture.y * mr_texture.y;
+    float r2 = mr_texture.y * mr_texture.y;
+    float m = mr_texture.z;
+
+    return {r2 * mesh->material.roughness2, m * mesh->material.metallic};
 }
 
 bool Primitive::transparent() const {

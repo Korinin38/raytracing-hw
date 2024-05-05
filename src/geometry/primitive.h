@@ -113,7 +113,8 @@ public:
     vector2f get_texcoord(vector2f local_coords) const;
 
     vector3f get_color(vector2f local_coords) const;
-//    vector2f get_metallic_roughness(vector2f local_coords) const;
+    vector3f get_emission(vector2f local_coords) const;
+    std::tuple<float, float> get_metallic_roughness(vector2f local_coords) const;
 
     AABB aabb() const;
 
@@ -138,7 +139,7 @@ struct Texture {
     int channels;
     int bytes_per_channel;
 
-    unsigned char* get(int x, int y) {
+    const unsigned char* get(int x, int y) const {
         x %= width;
         y %= height;
         return data.data() + (y * width + x) * channels * bytes_per_channel;
@@ -146,11 +147,38 @@ struct Texture {
 
     static float interpolate_bilinear(float a00, float a01, float a10, float a11, float dx, float dy) {
         return a00 * (1 - dx) * (1 - dy) + a01 * (1 - dx) * dy
-             + a10 * dx * (1 - dy) + a11 * dy;
+             + a10 * dx * (1 - dy) + a11 * dx * dy;
     };
     // p in [0,1]x[0,1] (or, otherwise, transformed by modulo 1)
     // dst is valid buffer that contains at least (channels * bytes_per_channel) bytes of memory
-    vector4f sRGB_get(vector2f p) {
+    const vector4f sample(vector2f p) const {
+        p.x -= std::floor(p.x);
+        p.y -= std::floor(p.y);
+
+        // expand to full canvas
+        p.x *= (float)width;
+        p.y *= (float)height;
+
+        vector4f res;
+        const uint8_t *ptrs = get(std::floor(p.x), std::floor(p.y));
+        for (int i = 0; i < channels; ++i) {
+            res[i] = ch8bit_to_normal(ptrs[i]);
+        }
+        return res;
+    }
+
+    // interpolates sample
+    const vector4f sRGBA_sample(vector2f p) const {
+        return interpolate_sample(p, true);
+    }
+
+    // interpolates sample
+    const vector4f RGBA_sample(vector2f p) const {
+        return interpolate_sample(p);
+    }
+
+private:
+    const vector4f interpolate_sample(vector2f p, bool srgb = false) const {
         // repeat
         p.x -= std::floor(p.x);
         p.y -= std::floor(p.y);
@@ -162,21 +190,24 @@ struct Texture {
         vector4f res;
 
         vector2i point = {(int)std::floor(p.x), (int)std::floor(p.y)};
-        vector2f delta = {p.x - std::floor(p.x), p.y - std::floor(p.y)};
+        vector2f inter_delta = {p.x - std::floor(p.x), p.y - std::floor(p.y)};
 
-        uint8_t *ptrs[4];
+        const uint8_t *ptrs[4];
         for (int dy = 0; dy < 2; ++dy)
-        for (int dx = 0; dx < 2; ++dx) {
-            ptrs[dx * 2 + dy] = get(point.x + dx, point.y + dy);
-        }
+            for (int dx = 0; dx < 2; ++dx) {
+                ptrs[dx * 2 + dy] = get(point.x + dx, point.y + dy);
+            }
 
         for (int i = 0; i < channels; ++i) {
             float vals[4];
             for (int dy = 0; dy < 2; ++dy)
-            for (int dx = 0; dx < 2; ++dx) {
-                vals[dx * 2 + dy] = std::pow(ch8bit_to_normal(*(ptrs[dx * 2 + dy] + i)), 2.2f);
-            }
-            res[i] = interpolate_bilinear(vals[0], vals[1], vals[2], vals[3], delta.x, delta.y);
+                for (int dx = 0; dx < 2; ++dx) {
+                    vals[dx * 2 + dy] = ch8bit_to_normal(ptrs[dx * 2 + dy][i]);
+                    if (srgb)
+                        vals[dx * 2 + dy] = std::pow(vals[dx * 2 + dy], 2.2f);
+                }
+            res[i] = interpolate_bilinear(vals[0], vals[1], vals[2], vals[3],
+                                          inter_delta.x, inter_delta.y);
         }
 
         return res;
