@@ -76,13 +76,13 @@ vector4f multiply(const matrix4<T> &mat, const vector4f &t) {
 template <typename T>
 vector3f multiply(const matrix4<T> &mat, const vector3f &t) {
     vector4f res = multiply(mat, {t.x, t.y, t.z, 1.f});
-    return {res.x, res.y, res.z};
+    return res.reduce();
 }
 
 template <typename T>
 vector3f multiplyVector(const matrix4<T> &mat, const vector3f &t) {
     vector4f res = multiply(mat, {t.x, t.y, t.z, 0.f});
-    return {res.x, res.y, res.z};
+    return res.reduce();
 }
 
 template <typename T>

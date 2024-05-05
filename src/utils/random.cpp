@@ -194,19 +194,23 @@ size_t ManyLightsDistribution::size() const {
 vector3f
 SceneDistribution::sample(const vector3f &point, const vector3f &normal, const vector3f &eye_direction, float roughness2, Engine &rng) const {
     float sample = (uniform::sample(rng) + 1.f) * 3 * 0.5f;
+    if (!light.size())
+        sample /= 1.5f;
+//    float sample = (uniform::sample(rng) + 1.f);
 //    float sample = 3.f;
-    if (sample <= 1.f || !light.size())
+    if (sample <= 1.f )
+//        return uniform::hemisphere(normal, rng);
         return cosine_weighted::sample(normal, rng);
     else if (sample <= 2.f)
-        return light.sample(point, rng);
-    else
         return visible_normal::sample(normal, eye_direction, roughness2, rng);
+    else if (sample <= 3.f)
+        return light.sample(point, rng);
 }
 
 float
 SceneDistribution::pdf(const vector3f &point, const vector3f &normal, const vector3f &eye_direction, float roughness2, const vector3f &direction) const {
     if (!light.size())
-        return cosine_weighted::pdf(normal, direction);
+        return (cosine_weighted::pdf(normal, direction) + visible_normal::pdf(normal, eye_direction, roughness2, direction)) / 2;
     return (cosine_weighted::pdf(normal, direction)
                 + light.pdf(point, direction)
                 + visible_normal::pdf(normal, eye_direction, roughness2, direction)

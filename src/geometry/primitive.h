@@ -100,6 +100,7 @@ public:
     // 2: V
     vector3f position[3] = {};
     vector3f normal[3] = {};
+    vector4f tangent[3] = {};
     vector2f texcoord[3] = {};
 
     Primitive() = default;

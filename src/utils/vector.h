@@ -57,6 +57,10 @@ struct vector4f {
 
     float &operator[](int i) { return *(&x + i); }
     const float &operator[](int i) const { return *(&x + i); }
+
+    vector3f reduce() const {
+        return {x, y, z};
+    }
 };
 #pragma pack(pop)
 
@@ -374,7 +378,7 @@ inline vector3f cross(const vector3f a, const vector3f b) {
 }
 
 inline vector3f rotate(const vector3f v, const vector4f q) {
-    vector3f u{q.x, q.y, q.z};
+    vector3f u = q.reduce();
     float s = q.w;
 
     return 2.f * dot(u, v) * u

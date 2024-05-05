@@ -44,8 +44,8 @@ Intersection Primitive::intersect(Ray ray) const {
     Intersection intersection;
 
     intersection.successful = true;
-    intersection.color = mesh->material.base_color;
     intersection.local_coords = {u, v};
+    intersection.color = get_color(intersection.local_coords);
     intersection.normal = get_geometric_normal();
     intersection.distance = t;
     if (dot(ray.direction, intersection.normal) > 0) {
@@ -86,7 +86,22 @@ vector3f Primitive::get_geometric_normal() const {
 vector3f Primitive::get_shading_normal(vector2f local_coords) const {
     if (local_coords.x < 0 || local_coords.x > 1 || local_coords.y < 0 || local_coords.x + local_coords.y > 1)
         throw std::runtime_error("Invalid local coordinates");
-    return ::normal((1 - local_coords.x - local_coords.y) * normal[0] + local_coords.x * normal[1] + local_coords.y * normal[2]);
+
+    vector3f local_z = ::normal((1 - local_coords.x - local_coords.y) * normal[0] + local_coords.x * normal[1] + local_coords.y * normal[2]);
+
+    if (mesh->material.normal_i == Material::NO_TEXTURE)
+        return local_z;
+
+    vector3f tangents[3] = {tangent[0].reduce(),tangent[1].reduce(),tangent[2].reduce()};
+    vector3f local_x = ::normal(multiplyVector(mesh->normal_transform, ::normal((1 - local_coords.x - local_coords.y) * tangents[0] + local_coords.x * tangents[1] + local_coords.y * tangents[2])));
+    vector3f local_y = cross(local_z, local_x) * tangent[0].w;
+
+    vector2f tc = get_texcoord(local_coords);
+    vector3f sample = textures[mesh->material.normal_i].RGBA_sample(tc).reduce();
+    vector3f local_normal = sample.add(-0.5f) * 2.f;
+
+    local_normal = ::normal(local_x * local_normal.x + local_y * local_normal.y + local_z * local_normal.z);
+    return local_normal;
 }
 
 vector2f Primitive::get_texcoord(vector2f local_coords) const {
@@ -97,12 +112,9 @@ vector3f Primitive::get_color(vector2f local_coords) const {
     if (mesh->material.base_color_i == Material::NO_TEXTURE)
         return mesh->material.base_color;
     vector2f tc = get_texcoord(local_coords);
-    vector4f albedo = textures[mesh->material.base_color_i].sRGBA_sample(tc);
-//    vector4f albedo = {tc.x, tc.y, 0};
 
-    vector3f color = {albedo.x, albedo.y, albedo.z};
+    vector3f color = textures[mesh->material.base_color_i].sRGBA_sample(tc).reduce();
     vector3f &factor = mesh->material.base_color;
-
     return color * factor;
 }
 
@@ -110,11 +122,9 @@ vector3f Primitive::get_emission(vector2f local_coords) const {
     if (mesh->material.emission_i == Material::NO_TEXTURE)
         return mesh->material.emission;
     vector2f tc = get_texcoord(local_coords);
-    vector4f emission_texture = textures[mesh->material.emission_i].sRGBA_sample(tc);
 
-    vector3f emission = {emission_texture.x, emission_texture.y, emission_texture.z};
+    vector3f emission = textures[mesh->material.emission_i].sRGBA_sample(tc).reduce();
     vector3f &factor = mesh->material.emission;
-
     return emission * factor;
 }
 
@@ -122,12 +132,10 @@ std::tuple<float, float> Primitive::get_metallic_roughness(vector2f local_coords
     if (mesh->material.metallic_roughness_i == Material::NO_TEXTURE)
         return {mesh->material.roughness2, mesh->material.metallic};
     vector2f tc = get_texcoord(local_coords);
-    vector4f mr_texture = textures[mesh->material.metallic_roughness_i].RGBA_sample(tc);
 
-//    float r2 = mr_texture.y * mr_texture.y;
+    vector4f mr_texture = textures[mesh->material.metallic_roughness_i].RGBA_sample(tc);
     float r2 = mr_texture.y * mr_texture.y;
     float m = mr_texture.z;
-
     return {r2 * mesh->material.roughness2, m * mesh->material.metallic};
 }
 

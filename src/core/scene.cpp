@@ -148,41 +148,43 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
 
     return intersection;
 
-//    // refraction
-//    if (!obj.transparent())
-//        return intersection;
-//    float cos_in = -dot(shading_normal, r.direction);
-//    float eta_1 = 1.f;
-//    float eta_2 = obj.mesh->material.ior;
-//    if (intersection.inside)
-//        std::swap(eta_1, eta_2);
-//
-//    float refractive_index = eta_1 / eta_2;
-//    float sin_out = refractive_index * std::sqrt(1 - cos_in * cos_in);
-//
-//    if (sin_out >= 1.f) {
-//        return intersection;
-//    }
-//    float cos_out = std::sqrt(1 - sin_out * sin_out);
-//    float refr_coeff = eta_1 / eta_2;
-//
-//    vector3f refr_dir = refr_coeff * r.direction + (refr_coeff * cos_in - cos_out) * shading_normal;
-//    normalize(refr_dir);
-//    Ray refract_ray(pos + refr_dir * step, refr_dir);
-//    refract_ray.power = r.power;
-//    auto refract_inter = intersect(refract_ray, rng);
-//
-//    vector3f refract_color{};
-//    if (refract_inter) {
-//        refract_color = refract_inter.color;
-//        if (!intersection.inside)
-//            refract_color *= base_color;
-//    } else {
-//        refract_color = bg_color;
-//    }
-//    intersection.color += refract_color * (1.f - obj.mesh->material.alpha);
-//
-//    return intersection;
+#ifdef USE_TRANSPARENCY
+    // refraction
+    if (!obj.transparent())
+        return intersection;
+    float cos_in = -dot(shading_normal, r.direction);
+    float eta_1 = 1.f;
+    float eta_2 = obj.mesh->material.ior;
+    if (intersection.inside)
+        std::swap(eta_1, eta_2);
+
+    float refractive_index = eta_1 / eta_2;
+    float sin_out = refractive_index * std::sqrt(1 - cos_in * cos_in);
+
+    if (sin_out >= 1.f) {
+        return intersection;
+    }
+    float cos_out = std::sqrt(1 - sin_out * sin_out);
+    float refr_coeff = eta_1 / eta_2;
+
+    vector3f refr_dir = refr_coeff * r.direction + (refr_coeff * cos_in - cos_out) * shading_normal;
+    normalize(refr_dir);
+    Ray refract_ray(pos + refr_dir * step, refr_dir);
+    refract_ray.power = r.power;
+    auto refract_inter = intersect(refract_ray, rng);
+
+    vector3f refract_color{};
+    if (refract_inter) {
+        refract_color = refract_inter.color;
+        if (!intersection.inside)
+            refract_color *= base_color;
+    } else {
+        refract_color = bg_color;
+    }
+    intersection.color += refract_color * (1.f - obj.mesh->material.alpha);
+
+    return intersection;
+#endif
 }
 
 Scene::Scene(camera_uniq_ptr &camera_, std::vector<Mesh> meshes_, std::vector<Primitive> objects_,
@@ -192,7 +194,6 @@ Scene::Scene(camera_uniq_ptr &camera_, std::vector<Mesh> meshes_, std::vector<Pr
       objects(std::move(objects_)),
       textures(std::move(textures_)),
       bg_color({.0f, .0f, .0f}),
-//      bg_color({.8f, .8f, .8f}),
       ray_depth(ray_depth_),
       samples(samples_),
       max_distance(max_distance_)

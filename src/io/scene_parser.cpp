@@ -113,7 +113,7 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
                 for (int j = 0; j < 3; ++j)
                     res[j] /= (float)model.nodes[node_with_camera].scale[j];
             }
-            cam_axes[i] = normal(vector3f{res.x, res.y, res.z});
+            cam_axes[i] = normal(res.reduce());
         }
         auto perspective = model.cameras[model.nodes[node_with_camera].camera].perspective;
         if (perspective.zfar > 0)
@@ -159,7 +159,7 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
 
             // material
             {
-                Material &material = scene.meshes[node.mesh].material;
+                Material &material = mesh.material;
 
                 if (p.material != -1) {
                     tinygltf::Material gltf_material = model.materials[p.material];
@@ -186,11 +186,12 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
                                 "emissiveStrength").GetNumberAsDouble();
                         material.emission *= emission_strength;
                     }
+                    auto get_image = [&](int i) {return (i == -1) ? -1 : model.textures[i].source; };
 
-                    material.base_color_i = gltf_material.pbrMetallicRoughness.baseColorTexture.index;
-                    material.normal_i = gltf_material.normalTexture.index;
-                    material.metallic_roughness_i = gltf_material.pbrMetallicRoughness.metallicRoughnessTexture.index;
-                    material.emission_i = gltf_material.emissiveTexture.index;
+                    material.base_color_i = get_image(gltf_material.pbrMetallicRoughness.baseColorTexture.index);
+                    material.normal_i = get_image(gltf_material.normalTexture.index);
+                    material.metallic_roughness_i = get_image(gltf_material.pbrMetallicRoughness.metallicRoughnessTexture.index);
+                    material.emission_i = get_image(gltf_material.emissiveTexture.index);
                 }
             }
 
@@ -198,6 +199,7 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
             float_t *position_view;
             float_t *normal_view;
             float_t *texcoord_view;
+            float_t *tangent_view;
 
             size_t indices_count;
             int indices_component_type;
@@ -247,16 +249,31 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
                 if (p.attributes.count("TEXCOORD_0") == 0) {
                     texcoord_view = nullptr;
                 } else {
-                auto texcoord_accessor = model.accessors[p.attributes["TEXCOORD_0"]];
-                if (texcoord_accessor.type != TINYGLTF_TYPE_VEC2)
-                    throw std::runtime_error("Texcoord type not supported");
-                if (texcoord_accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT)
-                    throw std::runtime_error("Texcoord component type not supported");
-                tinygltf::Buffer &texcoord_buffer = model.buffers[model.bufferViews[texcoord_accessor.bufferView].buffer];
-                size_t texcoord_start =
-                        model.bufferViews[texcoord_accessor.bufferView].byteOffset + texcoord_accessor.byteOffset;
+                    auto texcoord_accessor = model.accessors[p.attributes["TEXCOORD_0"]];
+                    if (texcoord_accessor.type != TINYGLTF_TYPE_VEC2)
+                        throw std::runtime_error("Texcoord type not supported");
+                    if (texcoord_accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT)
+                        throw std::runtime_error("Texcoord component type not supported");
+                    tinygltf::Buffer &texcoord_buffer = model.buffers[model.bufferViews[texcoord_accessor.bufferView].buffer];
+                    size_t texcoord_start =
+                            model.bufferViews[texcoord_accessor.bufferView].byteOffset + texcoord_accessor.byteOffset;
 
-                texcoord_view = (float_t *) (&texcoord_buffer.data[texcoord_start]);
+                    texcoord_view = (float_t *) (&texcoord_buffer.data[texcoord_start]);
+                }
+
+                if (p.attributes.count("TANGENT") == 0) {
+                    tangent_view = nullptr;
+                } else {
+                    auto tangent_accessor = model.accessors[p.attributes["TANGENT"]];
+                    if (tangent_accessor.type != TINYGLTF_TYPE_VEC4)
+                        throw std::runtime_error("Tangent type not supported");
+                    if (tangent_accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT)
+                        throw std::runtime_error("Tangent component type not supported");
+                    tinygltf::Buffer &tangent_buffer = model.buffers[model.bufferViews[tangent_accessor.bufferView].buffer];
+                    size_t tangent_start =
+                            model.bufferViews[tangent_accessor.bufferView].byteOffset + tangent_accessor.byteOffset;
+
+                    tangent_view = (float_t *) (&tangent_buffer.data[tangent_start]);
                 }
             }
 
@@ -312,6 +329,17 @@ Scene parse_scene_gltf(const std::string &filename, int width, int height, int s
                             primitive.texcoord[v][j] = texcoord_view[index[v] * 2 + j];
                         }
                     }
+                }
+
+                if (tangent_view) {
+                    for (int v = 0; v < 3; ++v) {
+                        for (int j = 0; j < 4; ++j) {
+                            primitive.tangent[v][j] = tangent_view[index[v] * 4 + j];
+                        }
+                    }
+                    float side = primitive.tangent[0].w;
+                    if (primitive.tangent[1].w != side || primitive.tangent[2].w != side)
+                        std::cout << "Warning: tangent.w values differ within triangle" << std::endl;
                 }
             }
         }
