@@ -10,6 +10,10 @@
 
 const float step = 1e-4;
 
+
+// NB: as objects with roughness < eps are breaking the view, we clamp it to 0.03f;
+const float ROUGHNESS2_LIMIT = 0.03f;
+
 void Scene::render(ProgressFunc callback) const {
     uniform_float_d offset(-0.5f, 0.5f);
     const unsigned int canvas_size = camera->canvas.height() * camera->canvas.width();
@@ -108,6 +112,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
 
     float metallic, roughness2;
     std::tie(roughness2, metallic) = obj.get_metallic_roughness(intersection.local_coords);
+    roughness2 = std::max(ROUGHNESS2_LIMIT, roughness2);
 
     vector3f dir{};
     float pdf = 0.f;
@@ -124,6 +129,8 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
     Ray reflect_ray(pos + dir * step, dir);
     reflect_ray.power = r.power;
     auto reflect_inter = intersect(reflect_ray, rng);
+    if (!reflect_inter)
+        return intersection;
     float coeff = 1 / pdf;
 
     vector3f half = normal(dir - r.direction);
@@ -144,7 +151,7 @@ Intersection Scene::intersect(Ray r, Engine &rng, bool no_color) const {
 
     vector3f material = dielectric_brdf * (1 - metallic) + metal_brdf * metallic;
 
-    intersection.color += reflect_inter.color * coeff * (material) * dot(dir, shading_normal) * obj.mesh->material.alpha;
+    intersection.color += reflect_inter.color * coeff * material * dot(dir, shading_normal) * obj.mesh->material.alpha;
 
     return intersection;
 
@@ -237,11 +244,6 @@ Scene::Scene(camera_uniq_ptr &camera_, std::vector<Mesh> meshes_, std::vector<Pr
 
     }
     std::cout << "At most " << max_node_count << " objects in single node." << std::endl;
-
-    // NB: as objects with roughness < eps are breaking the view, we clamp it to 0.03f;
-    const float ROUGHNESS_LIMIT = 0.03f;
-    for (auto &o : objects)
-        o.mesh->material.roughness2 = std::max(ROUGHNESS_LIMIT, o.mesh->material.roughness2);
 
     scene_distribution_ = std::make_shared<rng::SceneDistribution>(objects);
 }
