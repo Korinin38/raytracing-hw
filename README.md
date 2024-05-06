@@ -1,6 +1,7 @@
 Repository for Raytracing project.
 
-![1024 samples per pixel](examples/sponza.png "Sponza")
+![Sponza](examples/sponza.png "Sponza")
+*1024 samples per pixel*
 
 ## Requirements
 * CMake v3.27 or newer
